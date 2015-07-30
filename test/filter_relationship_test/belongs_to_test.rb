@@ -30,6 +30,14 @@ class BelongsToFilterTest < ActiveSupport::TestCase
     assert_equal [p2], Photo.filter(:account => account.id)
     assert_equal [p2], Photo.filter(:account => account.id.to_s)
   end
+  
+  test "::filter :belongs_to => FILTER" do
+    account = create(:account, :name => 'Minx')
+    p1 = create(:photo);
+    p2 = create(:photo, :account => account);
+    
+    assert_equal [p2], Photo.filter(:account => {name: 'Minx'})
+  end
 
   # test "::filter on model and belongs_to_association" do
   #   a1 = create(:property, photos_count: 1)
