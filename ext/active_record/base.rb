@@ -226,13 +226,14 @@ class ActiveRecord::Base
       when Hash
         if relation.polymorphic?
           raise 'no :as' if !value[:as]
-          klass = value.delete(:as).classify.constantize
+          v = value.dup
+          klass = v.delete(:as).classify.constantize
           t1 = resource.arel_table
           t2 = klass.arel_table
           resource = resource.joins(t1.join(t2).on(
             t2[:id].eq(t1["#{relation.name}_id"]).and(t1["#{relation.name}_type"].eq(klass.name))
           ).join_sources.first)
-          resource = resource.merge(klass.filter(value))
+          resource = resource.merge(klass.filter(v))
         else
           resource = resource.joins(relation.name) # if !resource.references?(relation.name)
           resource = resource.merge(relation.klass.filter(value))
