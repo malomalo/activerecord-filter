@@ -19,7 +19,14 @@ module Arel
         type = if !o.relation[0]
           ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array.new(nil)
         else
-          ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array.new("ActiveRecord::Type::#{o.relation[0].class}".constantize.new)
+          # TODO: temp fix, need to figure out how to look up ruby type ->
+          # postgres type or use the column we're quering on...
+          dt = if o.relation[0].class == Fixnum
+            dt = "Integer"
+          else
+            o.relation[0].class
+          end
+          ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array.new("ActiveRecord::Type::#{dt.class}".constantize.new)
         end
 
         collector << quote(type.type_cast_for_database(o.relation))
