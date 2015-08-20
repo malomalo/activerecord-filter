@@ -26,7 +26,7 @@ module Arel
           else
             o.relation[0].class
           end
-          ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array.new("ActiveRecord::Type::#{dt.class}".constantize.new)
+          ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array.new("ActiveRecord::Type::#{dt}".constantize.new)
         end
 
         collector << quote(type.type_cast_for_database(o.relation))

@@ -134,7 +134,6 @@ class ActiveRecord::Base
       when nil
         where(table[column].eq(nil))
       else
-        puts value.inspect
         raise 'Not supported'
       end
     end
@@ -143,8 +142,21 @@ class ActiveRecord::Base
       table = options[:table_alias] ? arel_table.alias(options[:table_alias]) : arel_table
 
       case value
+      when Hash
+        resource = all
+        value.each_pair do |key, value|
+          resource = case key.to_sym
+          when :contains
+            resource.where(Arel::Nodes::Contains.new(table[column], Arel::Attributes::Array.new(value)))
+          when :overlaps
+            resource.where(Arel::Nodes::Overlaps.new(table[column], Arel::Attributes::Array.new(value)))
+          else
+            raise "Not Supported: #{key.to_sym}"
+          end
+        end
+        resource
       when Array
-        where(Arel::Nodes::Overlaps.new(table[column], Arel::Attributes::Array.new(value)))
+        where(Arel::Nodes::Contains.new(table[column], Arel::Attributes::Array.new(value)))
       else
         any_column = Arel::Nodes::NamedFunction.new('ANY', [table[column]])
         predicate = Arel::Nodes::Equality.new(Arel::Nodes.build_quoted(value), any_column)
