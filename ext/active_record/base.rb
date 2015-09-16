@@ -147,9 +147,9 @@ class ActiveRecord::Base
         value.each_pair do |key, value|
           resource = case key.to_sym
           when :contains
-            resource.where(Arel::Nodes::Contains.new(table[column], Arel::Attributes::Array.new(value)))
+            resource.where(Arel::Nodes::Contains.new(table[column], Arel::Attributes::Array.new(Array(value))))
           when :overlaps
-            resource.where(Arel::Nodes::Overlaps.new(table[column], Arel::Attributes::Array.new(value)))
+            resource.where(Arel::Nodes::Overlaps.new(table[column], Arel::Attributes::Array.new(Array(value))))
           else
             raise "Not Supported: #{key.to_sym}"
           end
