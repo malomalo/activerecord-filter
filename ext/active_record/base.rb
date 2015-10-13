@@ -54,6 +54,7 @@ class ActiveRecord::Base
       filter_for_text: :itself,
       filter_for_boolean: :itself,
       filter_for_string: :itself,
+      filter_for_uuid: :itself,
       filter_for_decimal: :to_f
     }.each_pair do |method_name, send_method|
       define_method(method_name) do |column, value, options={}|
