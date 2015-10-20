@@ -55,7 +55,8 @@ class ActiveRecord::Base
       filter_for_boolean: :itself,
       filter_for_string: :itself,
       filter_for_uuid: :itself,
-      filter_for_decimal: :to_f
+      filter_for_decimal: :to_f,
+      filter_for_float: :to_f
     }.each_pair do |method_name, send_method|
       define_method(method_name) do |column, value, options={}|
         table = options[:table_alias] ? arel_table.alias(options[:table_alias]) : arel_table
