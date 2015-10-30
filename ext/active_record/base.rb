@@ -160,9 +160,7 @@ class ActiveRecord::Base
       when Array
         where(Arel::Nodes::Contains.new(table[column], Arel::Attributes::Array.new(value)))
       else
-        any_column = Arel::Nodes::NamedFunction.new('ANY', [table[column]])
-        predicate = Arel::Nodes::Equality.new(Arel::Nodes.build_quoted(value), any_column)
-        where(predicate)
+        where(Arel::Nodes::Contains.new(table[column], Arel::Attributes::Array.new([value])))
       end
     end
 
