@@ -152,6 +152,10 @@ class ActiveRecord::Base
             resource.where(Arel::Nodes::Contains.new(table[column], Arel::Attributes::Array.new(Array(value))))
           when :overlaps
             resource.where(Arel::Nodes::Overlaps.new(table[column], Arel::Attributes::Array.new(Array(value))))
+          when :not_overlaps
+            resource.where.not(Arel::Nodes::Overlaps.new(table[column], Arel::Attributes::Array.new(Array(value))))
+          when :not_contains
+            resource.where.not(Arel::Nodes::Contains.new(table[column], Arel::Attributes::Array.new(Array(value))))
           else
             raise "Not Supported: #{key.to_sym}"
           end
