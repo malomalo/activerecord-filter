@@ -15,7 +15,7 @@ class ActiveRecord::Base
       resource = all
       return resource unless filters
 
-      if filters.is_a? Hash
+      if filters.is_a?(Hash) || filters.is_a?(ActionController::Parameters)
         filters.each do |key, value|
           if @filters[key]
             #TODO add test for this... not sure how rails does this lambda call,
@@ -62,7 +62,7 @@ class ActiveRecord::Base
         table = options[:table_alias] ? arel_table.alias(options[:table_alias]) : arel_table
 
         case value
-        when Hash
+        when Hash, ActionController::Parameters
           resource = all
           value.each_pair do |key, value|
             converted_value = value.try(:send, send_method)
@@ -89,7 +89,7 @@ class ActiveRecord::Base
               # end
               
               # TODO us above if to determin if SRID sent
-              geometry_value = if value.is_a?(Hash)
+              geometry_value = if value.is_a?(Hash) || value.is_a?(ActionController::Parameters)
                 Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromGeoJSON', [Arel::Nodes.build_quoted(JSON.generate(value))]), 4326])
               elsif value[0,1] == "\x00" || value[0,1] == "\x01" || value[0,4] =~ /[0-9a-fA-F]{4}/
                 Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromEWKB', [Arel::Nodes.build_quoted(value)]), 4326])
@@ -144,7 +144,7 @@ class ActiveRecord::Base
       table = options[:table_alias] ? arel_table.alias(options[:table_alias]) : arel_table
 
       case value
-      when Hash
+      when Hash, ActionController::Parameters
         resource = all
         value.each_pair do |key, value|
           resource = case key.to_sym
@@ -177,7 +177,7 @@ class ActiveRecord::Base
       end
       
       case value
-      when Hash
+      when Hash, ActionController::Parameters
         resource = resource.joins(relation.name) if !resource.references?(relation.name)
         resource = resource.merge(relation.klass.filter(value, options))
       when Integer
@@ -197,7 +197,7 @@ class ActiveRecord::Base
       resource = all
 
       case value
-      when Hash
+      when Hash, ActionController::Parameters
         if relation.options[:through]
           resource = resource.joins(relation.options[:through] => relation.source_reflection_name)
         else
@@ -239,7 +239,7 @@ class ActiveRecord::Base
         resource = resource.where(resource.arel_table[:"#{relation.foreign_key}"].not_eq(nil))
       when false, 'false'
         resource = resource.where(resource.arel_table[:"#{relation.foreign_key}"].eq(nil))
-      when Hash
+      when Hash, ActionController::Parameters
         if relation.polymorphic?
           raise 'no :as' if !value[:as]
           v = value.dup

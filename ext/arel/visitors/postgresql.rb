@@ -29,7 +29,7 @@ module Arel
           ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array.new("ActiveRecord::Type::#{dt}".constantize.new)
         end
 
-        collector << quote(type.type_cast_for_database(o.relation))
+        collector << quote(type.serialize(o.relation))
       end
       
     end
