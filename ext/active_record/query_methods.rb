@@ -20,8 +20,8 @@
 #
 # end
 
-module ActiveRecord::Querying
-  # delegate :joined?, :to => :all
-  # delegate :included?, :to => :all
-  delegate :references?, :to => :all
-end
+# module ActiveRecord::Querying
+#   # delegate :joined?, :to => :all
+#   # delegate :included?, :to => :all
+#   delegate :references?, :to => :all
+# end
