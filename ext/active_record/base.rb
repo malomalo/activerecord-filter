@@ -178,13 +178,13 @@ class ActiveRecord::Base
       
       case value
       when Hash, ActionController::Parameters
-        resource = resource.joins(relation.name) if !resource.references?(relation.name)
+        resource = resource.joins(relation.name) #if !resource.references?(relation.name)
         resource = resource.merge(relation.klass.filter(value, options))
       when Integer
-        resource = resource.joins(relation.name) if !resource.references?(relation.name)
+        resource = resource.joins(relation.name) #if !resource.references?(relation.name)
         resource = resource.merge(relation.klass.filter(value, options))
       when Array
-        resource = resource.joins(relation.name) if !resource.references?(relation.name)
+        resource = resource.joins(relation.name) #if !resource.references?(relation.name)
         resource = resource.merge(relation.klass.filter(value, options))
       else
         raise 'Not supported'
