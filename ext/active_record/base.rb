@@ -127,44 +127,62 @@ class ActiveRecord::Base
     
     def filter_for_jsonb(column, value, options = {})
       table = options[:table_alias] ? arel_table.alias(options[:table_alias]) : arel_table
+      column = table[column]
       
-      case value
-      when true, 'true'
-        where(table[column].not_eq(nil))
-      when false, 'false'
-        where(table[column].eq(nil))
-      when nil
-        where(table[column].eq(nil))
-      else
-        raise 'Not supported'
+      drill_for_json(column, value, all)
+    end
+    
+    def drill_for_json(column, drill, resource)
+      drill.each do |key, value|
+        if value.is_a?(Hash)# || value.is_a?(ActionController::Parameters)
+          resource = drill_for_json(column.key(key), value, resource)
+        else
+          resource = case key.to_sym
+          when :equal, :eq
+            resource.where(column.eq(value))
+          when :greater_than, :gt
+            resource.where(column.gt(value))
+          when :less_than, :lt
+            resource.where(column.lt(value))
+          when :greater_than_or_equal_to, :gteq, :gte
+            resource.where(column.gteq(value))
+          when :less_than_or_equal_to, :lteq, :lte
+            resource.where(column.lteq(value))
+          when :not
+            resource.where(column.not_eq(value))
+          when :not_in
+            resource.where(column.not_in(value).or(column.eq(nil)))
+          else
+            raise 'Not supported'
+          end
+        end
       end
+      resource
     end
 
     def filter_for_array(column, value, options={})
       table = options[:table_alias] ? arel_table.alias(options[:table_alias]) : arel_table
 
       case value
-      when Hash, ActionController::Parameters
+      when Hash#, ActionController::Parameters
         resource = all
         value.each_pair do |key, value|
           resource = case key.to_sym
           when :contains
-            resource.where(Arel::Nodes::Contains.new(table[column], Arel::Attributes::Array.new(Array(value))))
+            resource.where(table[column].contains(value))
           when :overlaps
-            resource.where(Arel::Nodes::Overlaps.new(table[column], Arel::Attributes::Array.new(Array(value))))
-          when :not_overlaps
-            resource.where.not(Arel::Nodes::Overlaps.new(table[column], Arel::Attributes::Array.new(Array(value))))
-          when :not_contains
-            resource.where.not(Arel::Nodes::Contains.new(table[column], Arel::Attributes::Array.new(Array(value))))
+            resource.where(table[column].overlaps(value))
+          # when :not_overlaps
+          #   resource.where.not(Arel::Nodes::Overlaps.new(table[column], Arel::Attributes::Array.new(Array(value))))
+          # when :not_contains
+          #   resource.where.not(Arel::Nodes::Contains.new(table[column], Arel::Attributes::Array.new(Array(value))))
           else
             raise "Not Supported: #{key.to_sym}"
           end
         end
         resource
-      when Array
-        where(Arel::Nodes::Contains.new(table[column], Arel::Attributes::Array.new(value)))
       else
-        where(Arel::Nodes::Contains.new(table[column], Arel::Attributes::Array.new([value])))
+        where(table[column].contains(value))
       end
     end
 

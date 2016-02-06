@@ -17,15 +17,17 @@ Gem::Specification.new do |spec|
   spec.test_files    = `git ls-files -- {test}/*`.split("\n")
   spec.require_paths = ["lib"]
 
-  spec.add_runtime_dependency 'pg'
-  spec.add_runtime_dependency 'activerecord', '~> 5.0.0.beta1'
+  spec.add_runtime_dependency 'activerecord', '~> 5.0.0.beta2'
+  spec.add_runtime_dependency 'arel-extensions'
     
+  spec.add_development_dependency "pg"
   spec.add_development_dependency "bundler"
   spec.add_development_dependency "rake"
   spec.add_development_dependency 'minitest'
   spec.add_development_dependency 'minitest-reporters'
   spec.add_development_dependency "simplecov"
-  spec.add_development_dependency "factory_girl_rails"
+  spec.add_development_dependency "railties", '~> 5.0.0.beta2'
+  spec.add_development_dependency "factory_girl_rails", '~> 4.6.0'
   spec.add_development_dependency "faker"
   # spec.add_development_dependency 'sdoc',                '~> 0.4'
   # spec.add_development_dependency 'sdoc-templates-42floors', '~> 0.3'
