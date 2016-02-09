@@ -134,7 +134,7 @@ class ActiveRecord::Base
     
     def drill_for_json(column, drill, resource)
       drill.each do |key, value|
-        if value.is_a?(Hash)# || value.is_a?(ActionController::Parameters)
+        if value.is_a?(Hash) || value.is_a?(ActionController::Parameters)
           resource = drill_for_json(column.key(key), value, resource)
         else
           resource = case key.to_sym
@@ -164,7 +164,7 @@ class ActiveRecord::Base
       table = options[:table_alias] ? arel_table.alias(options[:table_alias]) : arel_table
 
       case value
-      when Hash#, ActionController::Parameters
+      when Hash, ActionController::Parameters
         resource = all
         value.each_pair do |key, value|
           resource = case key.to_sym
