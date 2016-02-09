@@ -150,6 +150,8 @@ class ActiveRecord::Base
             resource.where(column.lteq(value))
           when :not
             resource.where(column.not_eq(value))
+          when :has_key
+            resource.where(column.has_key(value))
           when :not_in
             resource.where(column.not_in(value).or(column.eq(nil)))
           else
