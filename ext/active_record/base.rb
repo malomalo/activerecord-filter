@@ -133,6 +133,10 @@ class ActiveRecord::Base
     end
     
     def drill_for_json(column, drill, resource)
+      if cast = drill.delete(:cast)
+        column = column.as(cast)
+      end
+
       drill.each do |key, value|
         if value.is_a?(Hash) || value.is_a?(ActionController::Parameters)
           resource = drill_for_json(column.key(key), value, resource)
