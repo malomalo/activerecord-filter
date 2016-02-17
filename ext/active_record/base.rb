@@ -60,7 +60,7 @@ class ActiveRecord::Base
     }.each_pair do |method_name, send_method|
       define_method(method_name) do |column, value, options={}|
         table = options[:table_alias] ? arel_table.alias(options[:table_alias]) : arel_table
-
+        
         case value
         when Hash, ActionController::Parameters
           resource = all
@@ -75,6 +75,8 @@ class ActiveRecord::Base
               resource.where(table[column].gteq(converted_value))
             when :less_than_or_equal_to, :lteq, :lte
               resource.where(table[column].lteq(converted_value))
+            when :in
+              resource.where(table[column].in(value.map { |x| x.send(send_method) }))
             when :not
               resource.where(table[column].not_eq(converted_value))
             when :not_in
