@@ -65,7 +65,12 @@ class ActiveRecord::Base
         when Hash, ActionController::Parameters
           resource = all
           value.each_pair do |key, value|
-            converted_value = value.try(:send, send_method)
+            converted_value = if value.is_a?(Array)
+              value.map { |x| x.try(:send, send_method) }
+            else
+              value.try(:send, send_method)
+            end
+
             resource = case key.to_sym
             when :greater_than, :gt
               resource.where(table[column].gt(converted_value))
@@ -76,11 +81,11 @@ class ActiveRecord::Base
             when :less_than_or_equal_to, :lteq, :lte
               resource.where(table[column].lteq(converted_value))
             when :in
-              resource.where(table[column].in(value.map { |x| x.send(send_method) }))
+              resource.where(table[column].in(converted_value))
             when :not
               resource.where(table[column].not_eq(converted_value))
             when :not_in
-              resource.where(table[column].not_in(value).or(table[column].eq(nil)))
+              resource.where(table[column].not_in(converted_value).or(table[column].eq(nil)))
             when :intersects
               # geometry_value = if value.is_a?(Hash) # GeoJSON
               #   Arel::Nodes::NamedFunction.new('ST_GeomFromGeoJSON', [JSON.generate(value)])
