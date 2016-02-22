@@ -86,6 +86,12 @@ class ActiveRecord::Base
               resource.where(table[column].not_eq(converted_value))
             when :not_in
               resource.where(table[column].not_in(converted_value).or(table[column].eq(nil)))
+            when :ts_match
+              if converted_value.is_a?(Array)
+                resource.where(table[column].ts_query(*converted_value))
+              else
+                resource.where(table[column].ts_query(converted_value))
+              end
             when :intersects
               # geometry_value = if value.is_a?(Hash) # GeoJSON
               #   Arel::Nodes::NamedFunction.new('ST_GeomFromGeoJSON', [JSON.generate(value)])
