@@ -157,7 +157,7 @@ module ActiveRecord::Filter
 
   def drill_for_json(column, drill, resource)
     if cast = drill.delete(:cast)
-      column = column.as(cast)
+      column = column.cast_as(cast)
     end
 
     drill.each do |key, value|
