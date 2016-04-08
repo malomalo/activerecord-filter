@@ -242,7 +242,7 @@ module ActiveRecord::Filter
     resource = all
 
     if value.is_a?(Hash) || value.class.name == "ActionController::Parameters".freeze 
-      if relation.options[:through]
+      if relation.options[:through] && !relation.options[:source_type]
         resource = resource.joins(relation.options[:through] => relation.source_reflection_name)
       else
         resource = resource.joins(relation.name) # if !resource.joined?(relation.name)
