@@ -82,6 +82,8 @@ module ActiveRecord::Filter
           end
 
           resource = case key.to_sym
+          when :equal_to, :eq
+            resource.where(table[column].eq(converted_value))
           when :greater_than, :gt
             resource.where(table[column].gt(converted_value))
           when :less_than, :lt
