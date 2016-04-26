@@ -53,7 +53,13 @@ module ActiveRecord::Filter
       if relation = reflect_on_association(key)
         self.send("filter_for_#{relation.macro}", relation, value)
       else
-        raise ActiveRecord::UnkownFilterError.new(self, key)
+        # Custome filter, try to guess based on value
+        # raise ActiveRecord::UnkownFilterError.new(self, key)
+        if value.is_a?(Hash) || value.class.name == "ActionController::Parameters".freeze 
+          all.send("filter_for_#{value.values.first.class.to_s.downcase}", key, value, options)
+        else
+          all.send("filter_for_#{value.class.to_s.downcase}", key, value, options)
+        end
       end
     end
   end
@@ -156,7 +162,8 @@ module ActiveRecord::Filter
   
     drill_for_json(column, value, all)
   end
-
+  alias :filter_for_json :filter_for_jsonb
+  
   def drill_for_json(column, drill, resource)
     if cast = drill.delete(:cast)
       column = column.cast_as(cast)
