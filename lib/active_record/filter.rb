@@ -104,6 +104,8 @@ module ActiveRecord::Filter
             resource.where(table[column].not_eq(converted_value))
           when :not_in
             resource.where(table[column].not_in(converted_value).or(table[column].eq(nil)))
+          when :like, :ilike
+            resource.where(table[column].matches(converted_value))
           when :ts_match
             if converted_value.is_a?(Array)
               resource.where(table[column].ts_query(*converted_value))
