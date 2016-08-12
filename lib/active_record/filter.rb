@@ -36,8 +36,13 @@ module ActiveRecord::Filter
           resource = resource.filter_for(key, value, options)
         end
       end
-    elsif filters.is_a?(Array) || filters.is_a?(Integer)
+    elsif filters.is_a?(Integer)
       resource = resource.filter_for(:id, filters, options)
+    elsif filters.is_a?(Array)
+      resource = filter(filters.pop, options)
+      filters.each do |f|
+        resource = resource.or(filter(f, options))
+      end
     end
 
     resource
