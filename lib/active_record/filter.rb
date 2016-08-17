@@ -1,5 +1,6 @@
 require 'active_record'
 require 'arel/extensions'
+require 'action_controller/metal/strong_parameters'
 
 class ActiveRecord::UnkownFilterError < NoMethodError
   attr_reader :klass, :filter
@@ -26,7 +27,8 @@ module ActiveRecord::Filter
     resource = all
     return resource unless filters
 
-    if filters.is_a?(Hash) || filters.class.name == "ActionController::Parameters".freeze 
+    case filters
+    when Hash, ActionController::Parameters
       filters.each do |key, value|
         if @filters[key]
           #TODO add test for this... not sure how rails does this lambda call,
@@ -36,13 +38,8 @@ module ActiveRecord::Filter
           resource = resource.filter_for(key, value, options)
         end
       end
-    elsif filters.is_a?(Integer)
+    when Integer, Array
       resource = resource.filter_for(:id, filters, options)
-    elsif filters.is_a?(Array)
-      resource = filter(filters.pop, options)
-      filters.each do |f|
-        resource = resource.or(filter(f, options))
-      end
     end
 
     resource
@@ -58,12 +55,18 @@ module ActiveRecord::Filter
       if relation = reflect_on_association(key)
         self.send("filter_for_#{relation.macro}", relation, value)
       else
-        # Custome filter, try to guess based on value
-        # raise ActiveRecord::UnkownFilterError.new(self, key)
-        if value.is_a?(Hash) || value.class.name == "ActionController::Parameters".freeze 
-          all.send("filter_for_#{value.values.first.class.to_s.downcase}", key, value, options)
+        # Custom filter, try to guess based on value
+        method = if value.is_a?(Hash) || value.is_a?(ActionController::Parameters)
+          "filter_for_#{value.values.first.class.to_s.downcase}"
         else
-          all.send("filter_for_#{value.class.to_s.downcase}", key, value, options)
+          "filter_for_#{value.class.to_s.downcase}"
+        end
+
+        puts method, all.respond_to?(method)
+        if all.respond_to?(method)
+          all.send(method, key, value, options)
+        else
+          raise ActiveRecord::UnkownFilterError.new(self, key)          
         end
       end
     end
@@ -73,6 +76,7 @@ module ActiveRecord::Filter
     filter_for_geometry: :itself,
     filter_for_datetime: :to_datetime,
     filter_for_integer: :to_i,
+    filter_for_fixnum: :to_i,
     filter_for_text: :itself,
     filter_for_boolean: :itself,
     filter_for_string: :itself,
@@ -82,7 +86,7 @@ module ActiveRecord::Filter
   }.each_pair do |method_name, send_method|
     define_method(method_name) do |column, value, options={}|
       table = options[:table_alias] ? arel_table.alias(options[:table_alias]) : arel_table
-      
+
       if value.is_a?(Hash) || value.class.name == "ActionController::Parameters".freeze 
         resource = all
         value.each_pair do |key, value|
