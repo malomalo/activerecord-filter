@@ -3,13 +3,6 @@ require 'arel/extensions'
 require 'action_controller/metal/strong_parameters'
 
 class ActiveRecord::UnkownFilterError < NoMethodError
-  attr_reader :klass, :filter
-
-  def initialize(klass, filter)
-    @klass = klass
-    @filter = filter.to_s
-    super("unkown filter #{filter.inspect} for #{klass}.")
-  end
 end
 
 module ActiveRecord::Filter
@@ -47,28 +40,15 @@ module ActiveRecord::Filter
 
   def filter_for(key, value, options={})
     column = columns_hash[key.to_s]
+    
     if column && column.array
       all.filter_for_array(key, value, options)
     elsif column
       all.send("filter_for_#{column.type}", key, value, options)
+    elsif relation = reflect_on_association(key)
+      self.send("filter_for_#{relation.macro}", relation, value)
     else
-      if relation = reflect_on_association(key)
-        self.send("filter_for_#{relation.macro}", relation, value)
-      else
-        # Custom filter, try to guess based on value
-        method = if value.is_a?(Hash) || value.is_a?(ActionController::Parameters)
-          "filter_for_#{value.values.first.class.to_s.downcase}"
-        else
-          "filter_for_#{value.class.to_s.downcase}"
-        end
-
-        puts method, all.respond_to?(method)
-        if all.respond_to?(method)
-          all.send(method, key, value, options)
-        else
-          raise ActiveRecord::UnkownFilterError.new(self, key)          
-        end
-      end
+      raise ActiveRecord::UnkownFilterError.new("Unkown filter \"#{key}\" for #{self}.")
     end
   end
 
@@ -161,8 +141,10 @@ module ActiveRecord::Filter
       #   # TODO support nil. Currently rails params encode nil as empty strings,
       #   # and we can't tell which is desired, so do both
       #   where(table[column].eq(value).or(table[column].eq(nil)))
-      else
+      elsif value.respond_to?(send_method)
         where(table[column].eq(value.try(:send, send_method)))
+      else
+        raise ActiveRecord::UnkownFilterError.new("Unkown type for #{column}. (type #{value.class})")
       end
     end
   end

@@ -12,15 +12,15 @@ class FilterTest < ActiveSupport::TestCase
     class X; end
 
     assert_raises(ActiveRecord::UnkownFilterError) do
-      Property.filter(unkown_column: X.new)
+      Property.filter(id: X.new)
     end
   end
 
-  # test '::filter not existant column' do
-  #   assert_raises(ActiveRecord::UnkownFilterError) do
-  #     Property.filter(unkown_column: 1)
-  #   end
-  # end
+  test '::filter not existant column or filter' do
+    assert_raises(ActiveRecord::UnkownFilterError) do
+      Property.filter(unkown_column: 1)
+    end
+  end
 
   test "::filter with lambda" do
     a1 = create(:property, :name => 'CA')
