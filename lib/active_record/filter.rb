@@ -220,10 +220,12 @@ module ActiveRecord::Filter
     resource = all
   
     options = {}
-    if resource.klass == relation.klass
+    if connection.class.name == 'ActiveRecord::ConnectionAdapters::SunstoneAPIAdapter'
+      options[:table_alias] = relation.name
+    elsif resource.klass == relation.klass
       options[:table_alias] = "#{relation.name}_#{relation.klass.table_name}"
     end
-  
+
     if value.is_a?(Hash) || value.class.name == "ActionController::Parameters".freeze
       resource = resource.joins(relation.name) #if !resource.references?(relation.name)
       resource = resource.merge(relation.klass.filter(value, options))
