@@ -138,7 +138,7 @@ module ActiveRecord::Filter
         else where(table[column].eq(nil))
         end
       elsif value == nil
-        where(table[column].eq(value).or(table[column].eq(nil)))
+        where(table[column].eq(nil))
       # when ''
       #   # TODO support nil. Currently rails params encode nil as empty strings,
       #   # and we can't tell which is desired, so do both
