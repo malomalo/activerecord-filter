@@ -40,7 +40,7 @@ module ActiveRecord::Filter
 
   def filter_for(key, value, options={})
     column = columns_hash[key.to_s]
-    
+
     if column && column.array
       all.filter_for_array(key, value, options)
     elsif column
@@ -155,19 +155,23 @@ module ActiveRecord::Filter
     table = options[:table_alias] ? arel_table.alias(options[:table_alias]) : arel_table
     column = table[column]
   
-    drill_for_json(column, value, all)
+    drill_for_json(column, value, all, 'jsonb')
   end
-  alias :filter_for_json :filter_for_jsonb
   
-  def drill_for_json(column, drill, resource)
-    if cast = drill.delete(:cast)
-      column = column.cast_as(cast)
-    end
-
+  def filter_for_json(column, value, options = {})
+    table = options[:table_alias] ? arel_table.alias(options[:table_alias]) : arel_table
+    column = table[column]
+  
+    drill_for_json(column, value, all, 'json')
+  end
+  
+  def drill_for_json(column, drill, resource, cast)
     drill.each do |key, value|
       if value.is_a?(Hash) || value.class.name == "ActionController::Parameters".freeze
-        resource = drill_for_json(column.key(key), value, resource)
+        resource = drill_for_json(column.key(key), value, resource, cast)
       else
+        value = Arel::Attributes::Cast.new(Arel::Nodes::Quoted.new(value.to_s), cast)
+        
         resource = case key.to_sym
         when :equal, :eq
           resource.where(column.eq(value))
@@ -227,7 +231,7 @@ module ActiveRecord::Filter
     elsif resource.klass == relation.klass
       options[:table_alias] = "#{relation.name}_#{relation.klass.table_name}"
     end
-
+    
     if value.is_a?(Hash) || value.class.name == "ActionController::Parameters".freeze
       resource = resource.joins(relation.name) #if !resource.references?(relation.name)
       resource = resource.merge(relation.klass.filter(value, options))
