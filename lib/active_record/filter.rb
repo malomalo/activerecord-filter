@@ -285,6 +285,11 @@ module ActiveRecord::Filter
 
   def filter_for_belongs_to(relation, value)
     resource = all
+    
+    options = {}
+    if connection.class.name == 'ActiveRecord::ConnectionAdapters::SunstoneAPIAdapter'
+      options[:table_alias] = relation.name
+    end
 
     if value.is_a?(Array) || value.is_a?(Integer) || value.is_a?(NilClass)
       resource = resource.where(:"#{relation.foreign_key}" => value)
@@ -302,10 +307,10 @@ module ActiveRecord::Filter
         resource = resource.joins(t1.join(t2).on(
           t2[:id].eq(t1["#{relation.name}_id"]).and(t1["#{relation.name}_type"].eq(klass.name))
         ).join_sources.first)
-        resource = resource.merge(klass.filter(v))
+        resource = resource.merge(klass.filter(v, options))
       else
         resource = resource.joins(relation.name) # if !resource.references?(relation.name)
-        resource = resource.merge(relation.klass.filter(value))
+        resource = resource.merge(relation.klass.filter(value, options))
       end
     else
       if value.is_a?(String) && value =~ /\A\d+\Z/
