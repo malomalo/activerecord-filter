@@ -92,7 +92,7 @@ module ActiveRecord::Filter
           when :not
             resource.where(table[column].not_eq(converted_value))
           when :not_in
-            resource.where(table[column].not_in(converted_value).or(table[column].eq(nil)))
+            resource.where(table[column].not_in(converted_value))
           when :like, :ilike
             resource.where(table[column].matches(converted_value))
           when :ts_match
@@ -188,7 +188,7 @@ module ActiveRecord::Filter
         when :has_key
           resource.where(column.has_key(value))
         when :not_in
-          resource.where(column.not_in(value).or(column.eq(nil)))
+          resource.where(column.not_in(value))
         else
           raise 'Not supported'
         end
