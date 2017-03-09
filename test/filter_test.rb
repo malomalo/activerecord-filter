@@ -29,13 +29,25 @@ class FilterTest < ActiveSupport::TestCase
     assert_equal [a2], Property.filter(:state => 'NY')
     assert_equal [a2], Property.filter(:state => 'ny')
   end
-  
-  test '::filter with an array' do
-    a1 = create(:property)
-    a2 = create(:property)
-    a3 = create(:property)
 
-    assert_equal [a2, a3], Property.filter([a2.id, a3.id.to_s])
+  test '::filter(OR CONDITION)' do
+    query = Property.filter([{id: 10}, 'OR', {name: 'name'}])
+    
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE (properties.id = 10 OR properties.name = 'name')
+    SQL
+  end
+
+  test '::where(AND & OR CONDITION)' do
+    query = Property.filter([{id: 10}, 'AND', [{id: 10}, 'OR', {name: 'name'}]])
+    
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE (properties.id = 10 AND (properties.id = 10 OR properties.name = 'name'))
+    SQL
   end
 
 end

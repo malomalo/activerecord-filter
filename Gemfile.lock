@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    activerecord-filter (5.0.0.5)
+    activerecord-filter (5.0.0.6)
       actionpack (~> 5.0, >= 5.0.0)
       activerecord (~> 5.0, >= 5.0.0)
       arel-extensions (~> 1.0, >= 1.0.0)
@@ -107,4 +107,4 @@ DEPENDENCIES
   simplecov
 
 BUNDLED WITH
-   1.13.2
+   1.14.4

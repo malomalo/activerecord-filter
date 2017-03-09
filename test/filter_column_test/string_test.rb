@@ -40,7 +40,7 @@ class StringFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.name NOT IN ('b', 'c') OR properties.name IS NULL)
+      WHERE (properties.name NOT IN ('b', 'c'))
     SQL
   end
 

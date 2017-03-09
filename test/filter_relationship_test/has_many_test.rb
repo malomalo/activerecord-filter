@@ -12,7 +12,22 @@ class HasManyFilterTest < ActiveSupport::TestCase
   
     assert_equal [a1].map(&:id).sort, Account.filter(:photos => false).map(&:id).sort
     assert_equal [a1].map(&:id).sort, Account.filter(:photos => 'false').map(&:id).sort
-  end  
+  end
+  
+  test "::filter nested relationships" do
+    account = create(:account)
+    photo = create(:photo)
+    property = create(:property)
+    
+    query = Account.filter(photos: {properties: {id: property.id}})
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT accounts.* FROM accounts
+      INNER JOIN photos ON photos.account_id = accounts.id
+      INNER JOIN photos_properties ON photos_properties.photo_id = photos.id
+      INNER JOIN properties ON properties.id = photos_properties.property_id
+      WHERE properties.id = #{property.id}
+    SQL
+  end
   
   # test "::filter :has_many with lambda" do
   #   a1 = create(:property)
