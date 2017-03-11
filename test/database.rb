@@ -49,7 +49,11 @@ ActiveRecord::Migration.suppress_messages do
       t.integer "parent_id", null: false
       t.integer "child_id",  null: false
     end
-
+    
+    create_table "views", force: :cascade do |t|
+      t.string  "subject_type"
+      t.integer "subject_id"
+    end
 
   end
 end
@@ -65,6 +69,10 @@ class Photo < ActiveRecord::Base
   belongs_to :account, :counter_cache => true
   has_and_belongs_to_many :properties
 
+end
+
+class View < ActiveRecord::Base
+  belongs_to :subject, polymorphic: true
 end
 
 class Property < ActiveRecord::Base
