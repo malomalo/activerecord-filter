@@ -36,7 +36,9 @@ module ActiveRecord::Filter
     end
     
     def filter!(klass, filters, options={})
-      nodes = filter_nodes(klass, filters, options={})
+      @filter_join_tables = {}
+      options[:join_trail] = []
+      nodes = filter_nodes(klass, filters, options)
       if nodes
         where!(nodes)
       end
@@ -71,7 +73,7 @@ module ActiveRecord::Filter
               node = node.and(filter_nodes(klass, n[1], options))
             end
           elsif n[0] == 'OR'
-            node = node.or(filter_nodes(klass, n[1], options))
+            node = Arel::Nodes::Grouping.new(node).or(Arel::Nodes::Grouping.new(filter_nodes(klass, n[1], options)))
           else
             raise 'lll'
           end
@@ -110,7 +112,7 @@ module ActiveRecord::Filter
       filter_for_float: :to_f
     }.each_pair do |method_name, send_method|
       define_method(method_name) do |klass, column, value, options={}|
-        table = options[:table_alias] ? klass.arel_table.alias(options[:table_alias]) : klass.arel_table
+        table = filter_table(klass, options)
 
         if value.is_a?(Hash) || value.class.name == "ActionController::Parameters".freeze
           nodes = []
@@ -271,39 +273,82 @@ module ActiveRecord::Filter
         table[column].contains(value)
       end
     end
-
-    def filter_for_has_and_belongs_to_many(klass, relation, value, options={})
-      if connection.class.name == 'ActiveRecord::ConnectionAdapters::SunstoneAPIAdapter'
-        options[:table_alias] = relation.name
-      elsif klass == relation.klass
-        options[:table_alias] = "#{relation.name}_#{relation.klass.table_name}"
+    
+    def filter_joins!(klass, relation, value, options)
+      puts relation.name, value.inspect
+      table_a = if options[:join_trail].empty?
+        klass.arel_table
+      else
+        @filter_join_tables[options[:join_trail].join('-')]
       end
-      table = options[:table_alias] ? klass.arel_table.alias(options[:table_alias]) : klass.arel_table
+      
+      options[:join_trail] << relation.name
+      
+      b_key = options[:join_trail].join('-')
+      return @filter_join_tables[b_key] if @filter_join_tables.has_key?(b_key)
+      
+      table_b = if relation.macro == :belongs_to && relation.polymorphic?
+        value[:type].arel_table
+      else
+        relation.klass.arel_table
+      end
+      
+      table_b = table_b.alias(b_key) unless table_b.name == b_key
+      @filter_join_tables[b_key] = table_b
+      
+      join = case relation.macro
+      when :has_many
+        Arel::Nodes::InnerJoin.new(table_b, Arel::Nodes::On.new(table_b[relation.foreign_key].eq(table_a[relation.active_record_primary_key])))
+      when :belongs_to
+        if relation.polymorphic?
+          on = table_b[relation.active_record_primary_key].eq(table_a[relation.foreign_key])
+          on = on.and(table_a[relation.foreign_type].eq(value[:type]))
+          Arel::Nodes::InnerJoin.new(table_b, Arel::Nodes::On.new(on))
+        else
+          Arel::Nodes::InnerJoin.new(table_b, Arel::Nodes::On.new(table_b[relation.active_record_primary_key].eq(table_a[relation.foreign_key])))
+        end
+      when :has_and_belongs_to_many
+        Arel::Nodes::InnerJoin.new(table_b, Arel::Nodes::On.new(table_b[relation.active_record_primary_key].eq(table_a[relation.association_foreign_key])))
+      end
+      joins!(join)
+      
+      table_b
+    end
+    
+    def filter_table(klass, options)
+      if options[:join_trail].nil? || options[:join_trail].empty?
+        klass.arel_table
+      else
+        @filter_join_tables[options[:join_trail].join('-')]
+      end
+    end
+    
+    def filter_for_has_and_belongs_to_many(klass, relation, value, options={})
 
-      options[:join_trail] ||= []
-      options[:join_trail].unshift(relation.name)
-        puts options[:join_trail].inject { |s, e| {e => s} }.inspect      
-      joins!( options[:join_trail].inject { |s, e| {e => s} } )
-      filter_nodes(relation.klass, value, options)
+      join_relation_name = klass.model_name.plural.gsub("::".freeze, "_".freeze) + "_" + relation.name.to_s
+      if value.is_a?(Integer)
+        join_table = filter_joins!(klass, klass._reflections[join_relation_name], value, options)
+        join_table[relation.association_foreign_key].eq(value)
+      elsif value == true || value == 'true'
+        join_table = filter_joins!(klass, klass._reflections[join_relation_name], value, options)
+        join_table[relation.association_foreign_key].not_eq(nil)
+      elsif value == false || value == 'false'
+        join_table = filter_joins!(klass, klass._reflections[join_relation_name], value, options)
+        join_table[relation.association_foreign_key].eq(nil)
+      elsif value.is_a?(Hash) || value.class.name == "ActionController::Parameters".freeze
+
+        filter_joins!(klass, klass._reflections[join_relation_name], value, options)
+        filter_joins!(klass, relation, value, options)
+        filter_nodes(relation.klass, value, options)
+      else
+        raise 'Not supported'
+      end
     end
 
-    def filter_for_has_many(klass, relation, value, options={})
-      table = options[:table_alias] ? klass.arel_table.alias(options[:table_alias]) : klass.arel_table
-      
+    def filter_for_has_many(klass, relation, value, options=nil)
       if value.is_a?(Hash) || value.class.name == "ActionController::Parameters".freeze
-        options[:join_trail] ||= []
-        
-        if relation.options[:through] && !relation.options[:source_type]
-          options[:join_trail].unshift(relation.options[:through])
-          options[:join_trail].unshift(relation.source_reflection_name)
-        else
-          options[:join_trail].unshift(relation.name)
-        end
-        puts options[:join_trail].inject { |s, e| {e => s} }.inspect
-        joins!( options[:join_trail].inject { |s, e| {e => s} } )
+        filter_joins!(klass, relation, value, options)
         filter_nodes(relation.klass, value, options)
-      elsif value.is_a?(Array) || value.is_a?(Integer)
-        filter_for_has_many(klass, relation, {id: value}, options)
       elsif value == true || value == 'true'
         counter_cache_column_name = relation.counter_cache_column || "#{relation.plural_name}_count"
         if klass.column_names.include?(counter_cache_column_name)
@@ -329,34 +374,25 @@ module ActiveRecord::Filter
       if connection.class.name == 'ActiveRecord::ConnectionAdapters::SunstoneAPIAdapter'
         options[:table_alias] = klass.relation.name
       end
-      table = options[:table_alias] ? klass.arel_table.alias(options[:table_alias]) : klass.arel_table
+      table = filter_table(klass, options)
 
       if value.is_a?(Array) || value.is_a?(Integer) || value.is_a?(NilClass)
-        table[:"#{relation.foreign_key}"].eq(value)
+        table[relation.foreign_key].eq(value)
       elsif value == true || value == 'true'
-        table[:"#{relation.foreign_key}"].not_eq(nil)
+        table[relation.foreign_key].not_eq(nil)
       elsif value == false || value == 'false'
-        table[:"#{relation.foreign_key}"].eq(nil)
+        table[relation.foreign_key].eq(nil)
       elsif value.is_a?(Hash) || value.class.name == "ActionController::Parameters".freeze
         if relation.polymorphic?
-          raise 'no :as' if !value[:as]
-          v = value.dup
-          klass = v.delete(:as).classify.constantize
-          t1 = table
-          t2 = klass.arel_table
-          self.joins!(t1.join(t2).on(
-            t2[:id].eq(t1["#{relation.name}_id"]).and(t1["#{relation.name}_type"].eq(klass.name))
-          ).join_sources.first)
-          filter_nodes(klass, v, options)
+          raise 'no :type for polymorphic filter' if !value[:type]
+          value[:type] = value[:type].classify.constantize
+          filter_joins!(klass, relation, value, options)
+          filter_nodes(value.delete(:type), value, options)
         else
-          # [:a, :b, :c].reverse.inject { |s, e| {e => s} }
-          options[:join_trail] ||= []
-          options[:join_trail].unshift(relation.name)
-          
-          self.joins!( options[:join_trail].inject { |s, e| {e => s} } )
-          puts [relation.klass, value, options].inspect
+          filter_joins!(klass, relation, value, options)
           filter_nodes(relation.klass, value, options)
         end
+
       else
         if value.is_a?(String) && value =~ /\A\d+\Z/
           table[:"#{relation.foreign_key}"].eq(value)

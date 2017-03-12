@@ -23,9 +23,9 @@ class HasManyFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT accounts.* FROM accounts
       INNER JOIN photos ON photos.account_id = accounts.id
-      INNER JOIN photos_properties ON photos_properties.photo_id = photos.id
-      INNER JOIN properties ON properties.id = photos_properties.property_id
-      WHERE properties.id = #{property.id}
+      INNER JOIN photos_properties photos-photos_properties ON photos-photos_properties.photo_id = photos.id
+      INNER JOIN properties photos-photos_properties-properties ON photos-photos_properties-properties.id = photos-photos_properties.property_id
+      WHERE photos-photos_properties-properties.id = #{property.id}
     SQL
   end
   
