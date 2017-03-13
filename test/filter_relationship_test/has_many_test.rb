@@ -2,30 +2,70 @@ require 'test_helper'
 
 class HasManyFilterTest < ActiveSupport::TestCase
   
-  test "::filter :has_many => BOOL (with counter_cache)" do
-    a1 = create(:account)
-    a2 = create(:account); 1.times { create(:photo, :account => a2) }
-    a3 = create(:account); 3.times { create(:photo, :account => a3) }
-
-    assert_equal [a2, a3].map(&:id).sort, Account.filter(:photos => true).map(&:id).sort
-    assert_equal [a2, a3].map(&:id).sort, Account.filter(:photos => 'true').map(&:id).sort
+  schema do
+    create_table "accounts", force: :cascade do |t|
+      t.string   "name",                 limit: 255
+      t.integer  'photos_count', null: false, default: 0
+    end
+    
+    create_table "photos", force: :cascade do |t|
+      t.integer  "account_id"
+      t.integer  "property_id"
+      t.string   "format",                 limit: 255
+    end
+    create_table "properties" do |t|
+      t.string   "name",                    limit: 255
+      t.string   "state",                    limit: 255
+    end
+  end
   
-    assert_equal [a1].map(&:id).sort, Account.filter(:photos => false).map(&:id).sort
-    assert_equal [a1].map(&:id).sort, Account.filter(:photos => 'false').map(&:id).sort
+  class Account < ActiveRecord::Base
+    has_many :photos
+  end
+
+  class Photo < ActiveRecord::Base
+    belongs_to :account, counter_cache: true
+    has_and_belongs_to_many :properties
+  end
+
+  class Property < ActiveRecord::Base
+  end
+
+  test "::filter has_many: BOOL (with counter_cache)" do
+    query = Account.filter(photos: true)
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT accounts.* FROM accounts
+      WHERE (accounts.photos_count > 0)
+    SQL
+    
+    query = Account.filter(photos: "true")
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT accounts.* FROM accounts
+      WHERE (accounts.photos_count > 0)
+    SQL
+
+
+    query = Account.filter(photos: false)
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT accounts.* FROM accounts
+      WHERE accounts.photos_count = 0
+    SQL
+    
+    query = Account.filter(photos: "false")
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT accounts.* FROM accounts
+      WHERE accounts.photos_count = 0
+    SQL
   end
   
   test "::filter nested relationships" do
-    account = create(:account)
-    photo = create(:photo)
-    property = create(:property)
-    
-    query = Account.filter(photos: {properties: {id: property.id}})
+    query = Account.filter(photos: {properties: {name: 'Name'}})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT accounts.* FROM accounts
       INNER JOIN photos ON photos.account_id = accounts.id
-      INNER JOIN photos_properties photos-photos_properties ON photos-photos_properties.photo_id = photos.id
-      INNER JOIN properties photos-photos_properties-properties ON photos-photos_properties-properties.id = photos-photos_properties.property_id
-      WHERE photos-photos_properties-properties.id = #{property.id}
+      INNER JOIN photos_properties photos-hasmanyfiltertest_photos_properties ON photos-hasmanyfiltertest_photos_properties.photo_id = photos.id
+      INNER JOIN properties photos-hasmanyfiltertest_photos_properties-properties ON photos-hasmanyfiltertest_photos_properties-properties.id = photos-hasmanyfiltertest_photos_properties.property_id
+      WHERE photos-hasmanyfiltertest_photos_properties-properties.name = 'Name'
     SQL
   end
   

@@ -116,11 +116,11 @@ module ActiveRecord::Filter
 
         if value.is_a?(Hash) || value.class.name == "ActionController::Parameters".freeze
           nodes = []
-          value.each_pair do |key, value|
-            converted_value = if value.is_a?(Array)
-              value.map { |x| x.try(:send, send_method) }
+          value.each_pair do |key, subvalue|
+            converted_value = if subvalue.is_a?(Array)
+              subvalue.map { |x| x.try(:send, send_method) }
             else
-              value.try(:send, send_method)
+              subvalue.try(:send, send_method)
             end
 
             nodes << case key.to_sym
@@ -136,7 +136,7 @@ module ActiveRecord::Filter
               table[column].lteq(converted_value)
             when :in
               table[column].in(converted_value)
-            when :not
+            when :not, :not_equal, :neq
               table[column].not_eq(converted_value)
             when :not_in
               table[column].not_in(converted_value)
@@ -158,12 +158,12 @@ module ActiveRecord::Filter
               # end
           
               # TODO us above if to determin if SRID sent
-              geometry_value = if value.is_a?(Hash) || value.class.name == "ActionController::Parameters".freeze
-                Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromGeoJSON', [Arel::Nodes.build_quoted(JSON.generate(value))]), 4326])
-              elsif value[0,1] == "\x00" || value[0,1] == "\x01" || value[0,4] =~ /[0-9a-fA-F]{4}/
-                Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromEWKB', [Arel::Nodes.build_quoted(value)]), 4326])
+              geometry_value = if subvalue.is_a?(Hash) || subvalue.class.name == "ActionController::Parameters".freeze
+                Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromGeoJSON', [Arel::Nodes.build_quoted(JSON.generate(subvalue))]), 4326])
+              elsif subvalue[0,1] == "\x00" || subvalue[0,1] == "\x01" || subvalue[0,4] =~ /[0-9a-fA-F]{4}/
+                Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromEWKB', [Arel::Nodes.build_quoted(subvalue)]), 4326])
               else
-                Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromText', [Arel::Nodes.build_quoted(value)]), 4326])
+                Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromText', [Arel::Nodes.build_quoted(subvalue)]), 4326])
               end
 
               Arel::Nodes::NamedFunction.new('ST_Intersects', [table[column], geometry_value])
@@ -177,14 +177,14 @@ module ActiveRecord::Filter
         elsif value == true || value == 'true'
           case method_name # columns_hash[column.to_s].try(:type)
           when :filter_for_boolean
-            table[column].eq(value.try(:send, send_method))
+            table[column].eq(true)
           else
             table[column].not_eq(nil)
           end
         elsif value == false || value == 'false'
           case method_name # columns_hash[column.to_s].try(:type)
           when :filter_for_boolean
-            table[column].eq(value.try(:send, send_method))
+            table[column].eq(false)
           else
             table[column].eq(nil)
           end
@@ -253,12 +253,12 @@ module ActiveRecord::Filter
 
       if value.is_a?(Hash) || value.class.name == "ActionController::Parameters".freeze
         nodes = []
-        value.each_pair do |key, value|
+        value.each_pair do |key, subvalue|
           nodes << case key.to_sym
           when :contains
-            table[column].contains(value)
+            table[column].contains(subvalue)
           when :overlaps
-            table[column].overlaps(value)
+            table[column].overlaps(subvalue)
           when :excludes
             raise 'todo'
             # resource.where.not(table[column].contains(value))
@@ -275,7 +275,6 @@ module ActiveRecord::Filter
     end
     
     def filter_joins!(klass, relation, value, options)
-      puts relation.name, value.inspect
       table_a = if options[:join_trail].empty?
         klass.arel_table
       else
@@ -324,8 +323,8 @@ module ActiveRecord::Filter
     end
     
     def filter_for_has_and_belongs_to_many(klass, relation, value, options={})
-
-      join_relation_name = klass.model_name.plural.gsub("::".freeze, "_".freeze) + "_" + relation.name.to_s
+      
+      join_relation_name = klass.name.pluralize.downcase.gsub("::".freeze, "_".freeze) + "_" + relation.name.to_s
       if value.is_a?(Integer)
         join_table = filter_joins!(klass, klass._reflections[join_relation_name], value, options)
         join_table[relation.association_foreign_key].eq(value)
@@ -336,7 +335,6 @@ module ActiveRecord::Filter
         join_table = filter_joins!(klass, klass._reflections[join_relation_name], value, options)
         join_table[relation.association_foreign_key].eq(nil)
       elsif value.is_a?(Hash) || value.class.name == "ActionController::Parameters".freeze
-
         filter_joins!(klass, klass._reflections[join_relation_name], value, options)
         filter_joins!(klass, relation, value, options)
         filter_nodes(relation.klass, value, options)
@@ -385,7 +383,7 @@ module ActiveRecord::Filter
       elsif value.is_a?(Hash) || value.class.name == "ActionController::Parameters".freeze
         if relation.polymorphic?
           raise 'no :type for polymorphic filter' if !value[:type]
-          value[:type] = value[:type].classify.constantize
+          value[:type] = relation.compute_class(value[:type])
           filter_joins!(klass, relation, value, options)
           filter_nodes(value.delete(:type), value, options)
         else

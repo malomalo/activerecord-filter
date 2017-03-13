@@ -2,88 +2,139 @@ require 'test_helper'
 
 class IntegerFilterTest < ActiveSupport::TestCase
 
+  schema do
+    create_table "properties", force: :cascade do |t|
+      t.integer  "constructed"
+    end
+  end
+
+  class Property < ActiveRecord::Base
+  end
+
   test "::filter :integer_column => {:gt => x}" do
-    a1 = create(:property, constructed: 0)
-    a2 = create(:property, constructed: 1)
-
-    assert_equal [], Property.filter(constructed: { gt: 1 }).order(:id)
-    assert_equal [a2], Property.filter(constructed: { gt: 0 }).order(:id)
-    assert_equal [a1, a2], Property.filter(constructed: { gt: -1 }).order(:id)
-
-    assert_equal [], Property.filter(constructed: { greater_than: 1 }).order(:id)
-    assert_equal [a2], Property.filter(constructed: { greater_than: 0 }).order(:id)
-    assert_equal [a1, a2], Property.filter(constructed: { greater_than: -1 }).order(:id)
+    query = Property.filter(constructed: { gt: 1 })
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE (properties.constructed > 1)
+    SQL
+    
+    query = Property.filter(constructed: { greater_than: 1 })
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE (properties.constructed > 1)
+    SQL
   end
 
   test "::filter :integer_column => {:gteq => x}" do
-    a1 = create(:property, constructed: 0)
-    a2 = create(:property, constructed: 1)
+    query = Property.filter(constructed: { gte: 1 })
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE (properties.constructed >= 1)
+    SQL
 
-    assert_equal [], Property.filter(constructed: { gte: 2 }).order(:id)
-    assert_equal [a2], Property.filter(constructed: { gte: 1 }).order(:id)
-    assert_equal [a1, a2], Property.filter(constructed: { gte: 0 }).order(:id)
+    query = Property.filter(constructed: { gteq: 1 })
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE (properties.constructed >= 1)
+    SQL
 
-    assert_equal [], Property.filter(constructed: { gteq: 2 }).order(:id)
-    assert_equal [a2], Property.filter(constructed: { gteq: 1 }).order(:id)
-    assert_equal [a1, a2], Property.filter(constructed: { gteq: 0 }).order(:id)
-
-    assert_equal [], Property.filter(constructed: { greater_than_or_equal_to: 2 }).order(:id)
-    assert_equal [a2], Property.filter(constructed: { greater_than_or_equal_to: 1 }).order(:id)
-    assert_equal [a1, a2], Property.filter(constructed: { greater_than_or_equal_to: 0 }).order(:id)
+    query = Property.filter(constructed: { greater_than_or_equal_to: 1 })
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE (properties.constructed >= 1)
+    SQL
   end
 
   test "::filter :integer_column => {:lt => x}" do
-    a1 = create(:property, constructed: 0)
-    a2 = create(:property, constructed: 1)
-
-    assert_equal [], Property.filter(constructed: { lt: 0 }).order(:id)
-    assert_equal [a1], Property.filter(constructed: { lt: 1 }).order(:id)
-    assert_equal [a1, a2], Property.filter(constructed: { lt: 2 }).order(:id)
-
-    assert_equal [], Property.filter(constructed: { less_than: 0 }).order(:id)
-    assert_equal [a1], Property.filter(constructed: { less_than: 1 }).order(:id)
-    assert_equal [a1, a2], Property.filter(constructed: { less_than: 2 }).order(:id)
+    query = Property.filter(constructed: { lt: 1 })
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE (properties.constructed < 1)
+    SQL
+    
+    query = Property.filter(constructed: { less_than: 1 })
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE (properties.constructed < 1)
+    SQL
   end
 
   test "::filter :integer_column => {:lteq => x}" do
-    a1 = create(:property, constructed: 0)
-    a2 = create(:property, constructed: 1)
-
-    assert_equal [], Property.filter(constructed: { lte: -1 }).order(:id)
-    assert_equal [a1], Property.filter(constructed: { lte: 0 }).order(:id)
-    assert_equal [a1, a2], Property.filter(constructed: { lte: 1 }).order(:id)
-
-    assert_equal [], Property.filter(constructed: { lteq: -1 }).order(:id)
-    assert_equal [a1], Property.filter(constructed: { lteq: 0 }).order(:id)
-    assert_equal [a1, a2], Property.filter(constructed: { lteq: 1 }).order(:id)
-
-    assert_equal [], Property.filter(constructed: { less_than_or_equal_to: -1 }).order(:id)
-    assert_equal [a1], Property.filter(constructed: { less_than_or_equal_to: 0 }).order(:id)
-    assert_equal [a1, a2], Property.filter(constructed: { less_than_or_equal_to: 1 }).order(:id)
+    query = Property.filter(constructed: { lte: 1 })
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE (properties.constructed <= 1)
+    SQL
+    
+    query = Property.filter(constructed: { lteq: 1 })
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE (properties.constructed <= 1)
+    SQL
+    
+    query = Property.filter(constructed: { less_than_or_equal_to: 1 })
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE (properties.constructed <= 1)
+    SQL
   end
 
   test "::filter :integer_column => int " do
-    a1 = create(:property, constructed: 0)
-    a2 = create(:property, constructed: 1)
-
-    assert_equal [a2], Property.filter(constructed: 1)
+    query = Property.filter(constructed: 1)
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.constructed = 1
+    SQL
   end
 
- test "::filter :integer_column => str" do
-    a1 = create(:property, constructed: 0)
-    a2 = create(:property, constructed: 1)
-
-    assert_equal [a2], Property.filter(constructed: '1')
+  test "::filter :integer_column => str" do
+    query = Property.filter(constructed: '1')
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.constructed = 1
+    SQL
   end
 
   test "::filter :integer_column => bool " do
-    a1 = create(:property, constructed: nil)
-    a2 = create(:property, constructed: 1999)
+    query = Property.filter(constructed: true)
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE (properties.constructed IS NOT NULL)
+    SQL
 
-    assert_equal [a2], Property.filter(constructed: true)
-    assert_equal [a2], Property.filter(constructed: 'true')
-    assert_equal [a1], Property.filter(constructed: false)
-    assert_equal [a1], Property.filter(constructed: 'false')
+    query = Property.filter(constructed: "true")
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE (properties.constructed IS NOT NULL)
+    SQL
+    
+    query = Property.filter(constructed: false)
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.constructed IS NULL
+    SQL
+
+    query = Property.filter(constructed: "false")
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.constructed IS NULL
+    SQL
   end
 
 end

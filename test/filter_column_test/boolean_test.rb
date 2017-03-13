@@ -2,27 +2,53 @@ require 'test_helper'
 
 class BooleanFilterTest < ActiveSupport::TestCase
 
-  test "::filter :boolean_column => boolean " do
-    l1 = create(:property, active: true)
-    l2 = create(:property, active: false)
-
-    assert_equal [l1], Property.filter(active: true)
-    assert_equal [l2], Property.filter(active: false)
+  schema do
+    create_table "properties", force: :cascade do |t|
+      t.boolean  "active",             default: false
+    end
   end
 
-  test "::filter :boolean_column => str " do
-    l1 = create(:property, active: true)
-    l2 = create(:property, active: false)
+  class Property < ActiveRecord::Base
+  end
 
-    assert_equal [l1], Property.filter(active: 'true')
-    assert_equal [l2], Property.filter(active: 'false')
+  test "::filter :boolean_column => boolean " do
+    query = Property.filter(active: true)
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.active = 't'
+    SQL
+    
+    query = Property.filter(active: "true")
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.active = 't'
+    SQL
+    
+    
+    query = Property.filter(active: false)
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.active = 'f'
+    SQL
+    
+    query = Property.filter(active: "false")
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.active = 'f'
+    SQL
   end
 
   test "::filter :boolean_column => nil " do
-    l1 = create(:property, active: true)
-    l2 = create(:property, active: nil)
-
-    assert_equal [l2], Property.filter(active: nil)
+    query = Property.filter(active: nil)
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.active IS NULL
+    SQL
   end
 
 end

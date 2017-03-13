@@ -2,17 +2,30 @@ require 'test_helper'
 
 class FilterTest < ActiveSupport::TestCase
 
-  test '::filter nil' do
-    a = create(:property)
+  schema do
+    create_table "properties" do |t|
+      t.string   "name",                    limit: 255
+      t.string   "state",                    limit: 255
+    end
+  end
+  
+  class Property < ActiveRecord::Base
+  end
+  
+  class IAmNotAFilter
+  end
 
-    assert_equal([a], Property.filter(nil))
+  test '::filter nil' do
+    query = Property.filter(nil)
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+    SQL
   end
 
   test '::filter not existant filter' do
-    class X; end
-
     assert_raises(ActiveRecord::UnkownFilterError) do
-      Property.filter(id: X.new)
+      Property.filter(id: IAmNotAFilter.new)
     end
   end
 
@@ -23,16 +36,16 @@ class FilterTest < ActiveSupport::TestCase
   end
 
   test "::filter with lambda" do
-    a1 = create(:property, :name => 'CA')
-    a2 = create(:property, :name => 'NY')
-
-    assert_equal [a2], Property.filter(:state => 'NY')
-    assert_equal [a2], Property.filter(:state => 'ny')
+    query = Property.filter(state: 'NY')
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.state = 'NY'
+    SQL
   end
 
   test '::filter(OR CONDITION)' do
     query = Property.filter([{id: 10}, 'OR', {name: 'name'}])
-    
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
@@ -42,7 +55,6 @@ class FilterTest < ActiveSupport::TestCase
 
   test '::where(AND & OR CONDITION)' do
     query = Property.filter([{id: 10}, 'AND', [{id: 10}, 'OR', {name: 'name'}]])
-    
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties

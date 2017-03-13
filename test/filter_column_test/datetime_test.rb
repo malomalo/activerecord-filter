@@ -1,21 +1,60 @@
 require 'test_helper'
 
 class DatetimeFilterTest < ActiveSupport::TestCase
+  schema do
+    create_table "properties", force: :cascade do |t|
+      t.datetime "created_at",                         null: false
+    end
+  end
+
+  class Property < ActiveRecord::Base
+  end
+  
+  def format_time(value)
+    value.utc.iso8601(6).sub(/T/, ' ').sub(/Z$/, '')
+  end
 
   test "::filter :datetime_column => {:gt => date, :lt => date}" do
-    l1, l2, l3 = nil, nil, nil
-    travel_to(Date.today - 3.days) { l1 = create(:property) }
-    travel_to(Date.today - 2.days) { l2 = create(:property) }
-    travel_to(Date.today) { l3 = create(:property) }
+    t1 = 5.days.ago
+    t2 = 4.days.ago
+    t3 = 1.day.ago
+    t4 = 1.day.from_now
 
-    assert_equal [l1, l2], Property.filter(:created_at => {:gte => Date.today - 4.days, :lte => Date.today - 1.days}).order(:id)
-    assert_equal [], Property.filter(:created_at => {:gte => Date.today - 5.days, :lte => Date.today - 4.days})
-    assert_equal [l3], Property.filter(:created_at => {:gte => Date.today - 1.days, :lte => Date.today + 1.days})
+    query = Property.filter(created_at: {gte: t2, lte: t3})
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE (properties.created_at >= '#{format_time(t2)}'
+        AND properties.created_at <= '#{format_time(t3)}')
+    SQL
+    
+
+    query = Property.filter(:created_at => {gt: t1, lt: t2})
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE (properties.created_at > '#{format_time(t1)}'
+        AND properties.created_at < '#{format_time(t2)}')
+    SQL
+
+    query = Property.filter(:created_at => {gte: t3, lte: t4})
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE (properties.created_at >= '#{format_time(t3)}'
+        AND properties.created_at <= '#{format_time(t4)}')
+    SQL
   end
 
   test "::filter :datetime_column => date" do
-    l1 = create(:property)
-    assert_equal [l1], Property.filter(:created_at => [l1.created_at])
+    time = Time.now
+    
+    query = Property.filter(created_at: time)
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.created_at = '#{format_time(time)}'
+    SQL
   end
 
 end

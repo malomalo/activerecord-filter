@@ -2,41 +2,74 @@ require 'test_helper'
 
 class BelongsToFilterTest < ActiveSupport::TestCase
 
+  schema do
+    create_table "accounts", force: :cascade do |t|
+      t.string   "name",                 limit: 255
+      t.integer  'photos_count', null: false, default: 0
+    end
+    
+    create_table "photos", force: :cascade do |t|
+      t.integer  "account_id"
+      t.integer  "property_id"
+      t.string   "format",                 limit: 255
+    end
+  end
+
+  class Account < ActiveRecord::Base
+    has_many :photos
+  end
+
+  class Photo < ActiveRecord::Base
+    belongs_to :account, counter_cache: true
+  end
+
   test "::filter :belongs_to => BOOL" do
-    account = create(:account)
-    p1 = create(:photo);
-    p2 = create(:photo, :account => account);
+    query = Photo.filter(account: true)
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT photos.*
+      FROM photos
+      WHERE (photos.account_id IS NOT NULL)
+    SQL
     
-    assert_equal [p2], Photo.filter(:account => true)
-    assert_equal [p2], Photo.filter(:account => "true")
+    query = Photo.filter(account: "true")
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT photos.*
+      FROM photos
+      WHERE (photos.account_id IS NOT NULL)
+    SQL
     
-    assert_equal [p1], Photo.filter(:account => false)
-    assert_equal [p1], Photo.filter(:account => "false")
+    query = Photo.filter(account: false)
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT photos.*
+      FROM photos
+      WHERE photos.account_id IS NULL
+    SQL
+    
+    query = Photo.filter(account: "false")
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT photos.*
+      FROM photos
+      WHERE photos.account_id IS NULL
+    SQL
   end
 
   test "::filter :belongs_to => NIL" do
-    account = create(:account)
-    p1 = create(:photo);
-    p2 = create(:photo, :account => account);
-    
-    assert_equal [p1], Photo.filter(:account => nil)
+    query = Photo.filter(account: nil)
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT photos.*
+      FROM photos
+      WHERE photos.account_id IS NULL
+    SQL
   end
-  
-  test "::filter :belongs_to => INT" do
-    account = create(:account)
-    p1 = create(:photo);
-    p2 = create(:photo, :account => account);
-    
-    assert_equal [p2], Photo.filter(:account => account.id)
-    assert_equal [p2], Photo.filter(:account => account.id.to_s)
-  end
-  
+
   test "::filter :belongs_to => FILTER" do
-    account = create(:account, :name => 'Minx')
-    p1 = create(:photo);
-    p2 = create(:photo, :account => account);
-    
-    assert_equal [p2], Photo.filter(:account => {name: 'Minx'})
+    query = Photo.filter(account: {name: 'Minx'})
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT photos.*
+      FROM photos
+      INNER JOIN accounts account ON account.id = photos.account_id
+      WHERE account.name = 'Minx'
+    SQL
   end
 
   # test "::filter on model and belongs_to_association" do
@@ -52,7 +85,7 @@ class BelongsToFilterTest < ActiveSupport::TestCase
   #   assert_equal [l2], Listing.filter(:authorized => true, :property => { photos_count: { :gteq => 2 }})
   #   assert_equal [l1, l2], Listing.filter(:authorized => true, :property => { photos_count: { :gteq => 1 }}).order(:id)
   # end
-  
+
   # test "::filter :belongs_to_association => { :boolean_column => boolean } " do
   #   a1 = create(:property, photos_count: 1)
   #   a2 = create(:property, photos_count: 0)
