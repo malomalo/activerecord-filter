@@ -323,6 +323,7 @@ module ActiveRecord::Filter
     end
     
     def filter_for_has_and_belongs_to_many(klass, relation, value, options={})
+      options = options.deep_dup
       
       join_relation_name = klass.name.pluralize.downcase.gsub("::".freeze, "_".freeze) + "_" + relation.name.to_s
       if value.is_a?(Integer)
@@ -344,6 +345,8 @@ module ActiveRecord::Filter
     end
 
     def filter_for_has_many(klass, relation, value, options=nil)
+      options = options.deep_dup
+      
       if value.is_a?(Hash) || value.class.name == "ActionController::Parameters".freeze
         filter_joins!(klass, relation, value, options)
         filter_nodes(relation.klass, value, options)
@@ -369,12 +372,14 @@ module ActiveRecord::Filter
     alias_method :filter_for_has_one, :filter_for_has_many
 
     def filter_for_belongs_to(klass, relation, value, options={})
+      options = options.deep_dup
+      
       if connection.class.name == 'ActiveRecord::ConnectionAdapters::SunstoneAPIAdapter'
         options[:table_alias] = klass.relation.name
       end
       table = filter_table(klass, options)
 
-      if value.is_a?(Array) || value.is_a?(Integer) || value.is_a?(NilClass)
+      ret = if value.is_a?(Array) || value.is_a?(Integer) || value.is_a?(NilClass)
         table[relation.foreign_key].eq(value)
       elsif value == true || value == 'true'
         table[relation.foreign_key].not_eq(nil)
