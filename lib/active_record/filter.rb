@@ -53,7 +53,7 @@ module ActiveRecord::Filter
           if klass.filters[key]
             #TODO add test for this... not sure how rails does this lambda call,
             # do they run it in a context for merge?
-            merge!( klass.filters[key].call(value) )
+            instance_exec(klass, key, value, options, &klass.filters[key])
             nil
           else
             x = filter_for(klass, key, value, options)
@@ -175,14 +175,14 @@ module ActiveRecord::Filter
         elsif value.is_a?(Array)
           table[column].in(value.map { |x| x.send(send_method) })
         elsif value == true || value == 'true'
-          case method_name # columns_hash[column.to_s].try(:type)
+          case method_name
           when :filter_for_boolean
             table[column].eq(true)
           else
             table[column].not_eq(nil)
           end
         elsif value == false || value == 'false'
-          case method_name # columns_hash[column.to_s].try(:type)
+          case method_name
           when :filter_for_boolean
             table[column].eq(false)
           else
@@ -287,7 +287,7 @@ module ActiveRecord::Filter
       return @filter_join_tables[b_key] if @filter_join_tables.has_key?(b_key)
       
       table_b = if relation.macro == :belongs_to && relation.polymorphic?
-        value[:type].arel_table
+        value[:as].arel_table
       else
         relation.klass.arel_table
       end
@@ -301,7 +301,7 @@ module ActiveRecord::Filter
       when :belongs_to
         if relation.polymorphic?
           on = table_b[relation.active_record_primary_key].eq(table_a[relation.foreign_key])
-          on = on.and(table_a[relation.foreign_type].eq(value[:type]))
+          on = on.and(table_a[relation.foreign_type].eq(value[:as]))
           Arel::Nodes::InnerJoin.new(table_b, Arel::Nodes::On.new(on))
         else
           Arel::Nodes::InnerJoin.new(table_b, Arel::Nodes::On.new(table_b[relation.active_record_primary_key].eq(table_a[relation.foreign_key])))
@@ -382,10 +382,10 @@ module ActiveRecord::Filter
         table[relation.foreign_key].eq(nil)
       elsif value.is_a?(Hash) || value.class.name == "ActionController::Parameters".freeze
         if relation.polymorphic?
-          raise 'no :type for polymorphic filter' if !value[:type]
-          value[:type] = relation.compute_class(value[:type])
+          raise 'no :as for polymorphic filter' if !value[:as]
+          value[:as] = relation.compute_class(value[:as])
           filter_joins!(klass, relation, value, options)
-          filter_nodes(value.delete(:type), value, options)
+          filter_nodes(value.delete(:as), value, options)
         else
           filter_joins!(klass, relation, value, options)
           filter_nodes(relation.klass, value, options)

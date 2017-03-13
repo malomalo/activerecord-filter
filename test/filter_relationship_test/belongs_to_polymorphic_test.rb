@@ -22,7 +22,7 @@ class BelongsToPolymorphicFilterTest < ActiveSupport::TestCase
   end
 
   test "::filter :belongs_to => {ID: VALUE}" do
-    query = View.filter(subject: {type: "Property", name: 'Name'})
+    query = View.filter(subject: {as: "Property", name: 'Name'})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT views.* FROM views
       INNER JOIN properties subject ON subject.id = views.subject_id AND views.subject_type = 'BelongsToPolymorphicFilterTest::Property'
