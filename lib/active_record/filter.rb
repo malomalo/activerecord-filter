@@ -94,6 +94,8 @@ module ActiveRecord::Filter
         self.send("filter_for_#{column.type}", klass, key, value, options)
       elsif relation = klass.reflect_on_association(key)
         self.send("filter_for_#{relation.macro}", klass, relation, value, options)
+      elsif relation = klass.reflect_on_all_associations(:has_and_belongs_to_many).find {|r| r.join_table == key.to_s }
+        self.send("filter_for_habtm_join_table", klass, klass._reflections[relation.name.to_s], value, options)
       else
         raise ActiveRecord::UnkownFilterError.new("Unkown filter \"#{key}\" for #{self}.")
       end
@@ -323,6 +325,10 @@ module ActiveRecord::Filter
     end
     
     def filter_for_has_and_belongs_to_many(klass, relation, value, options={})
+      # TODO: only 1 join is only on association primary key
+      # if (value.keys.map(&:to_s) - relation.association_primary_key).empty?
+      # else
+      # end
       options = options.deep_dup
       
       join_relation_name = klass.name.pluralize.downcase.gsub("::".freeze, "_".freeze) + "_" + relation.name.to_s
@@ -403,6 +409,11 @@ module ActiveRecord::Filter
           raise 'Not supported'
         end
       end
+    end
+    
+    def  filter_for_habtm_join_table(klass, relation, value, options={})
+      filter_joins!(klass, relation.through_reflection, value, options)
+      filter_nodes(relation.through_reflection.klass, value, options)
     end
 
   end
