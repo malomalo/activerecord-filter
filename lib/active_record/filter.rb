@@ -94,7 +94,7 @@ module ActiveRecord::Filter
         self.send("filter_for_#{column.type}", klass, key, value, options)
       elsif relation = klass.reflect_on_association(key)
         self.send("filter_for_#{relation.macro}", klass, relation, value, options)
-      elsif relation = klass.reflect_on_all_associations(:has_and_belongs_to_many).find {|r| r.join_table == key.to_s }
+      elsif relation = klass.reflect_on_all_associations(:has_and_belongs_to_many).find {|r| r.join_table == key.to_s && value.keys.first.to_s == r.association_foreign_key.to_s }
         self.send("filter_for_habtm_join_table", klass, klass._reflections[relation.name.to_s], value, options)
       else
         raise ActiveRecord::UnkownFilterError.new("Unkown filter \"#{key}\" for #{self}.")
@@ -294,7 +294,12 @@ module ActiveRecord::Filter
         relation.klass.arel_table
       end
       
-      table_b = table_b.alias(b_key) unless table_b.name == b_key
+      if connection.class.name == 'ActiveRecord::ConnectionAdapters::SunstoneAPIAdapter'
+        table_b = table_b.alias(relation.name)
+      else
+        table_b = table_b.alias(b_key) unless table_b.name == b_key
+      end
+
       @filter_join_tables[b_key] = table_b
       
       join = case relation.macro
@@ -385,7 +390,7 @@ module ActiveRecord::Filter
       end
       table = filter_table(klass, options)
 
-      ret = if value.is_a?(Array) || value.is_a?(Integer) || value.is_a?(NilClass)
+      if value.is_a?(Array) || value.is_a?(Integer) || value.is_a?(NilClass)
         table[relation.foreign_key].eq(value)
       elsif value == true || value == 'true'
         table[relation.foreign_key].not_eq(nil)

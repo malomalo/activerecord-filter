@@ -85,6 +85,13 @@ class HABTMTest < ActiveSupport::TestCase
       INNER JOIN regions_regions habtmtest_regions_parents ON habtmtest_regions_parents.child_id = regions.id
       WHERE habtmtest_regions_parents.parent_id = 42
     SQL
+    
+    query = Region.filter(regions_regions: {child_id: 42})
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT regions.* FROM regions
+      INNER JOIN regions_regions habtmtest_regions_children ON habtmtest_regions_children.parent_id = regions.id
+      WHERE habtmtest_regions_children.child_id = 42
+    SQL
   end
 
 end
