@@ -57,7 +57,16 @@ class HasManyFilterTest < ActiveSupport::TestCase
       WHERE accounts.photos_count = 0
     SQL
   end
-  
+
+  test "::filter has_many: FILTER" do
+    query = Account.filter(photos: {format: 'jpg'})
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT accounts.* FROM accounts
+      INNER JOIN photos ON photos.account_id = accounts.id
+      WHERE photos.format = 'jpg'
+    SQL
+  end
+    
   test "::filter nested relationships" do
     query = Account.filter(photos: {properties: {name: 'Name'}})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))

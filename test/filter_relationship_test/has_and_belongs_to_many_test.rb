@@ -8,6 +8,7 @@ class HABTMTest < ActiveSupport::TestCase
     end
 
     create_table "regions", force: :cascade do |t|
+      t.string 'name', limit: 255
     end
     
     create_table "properties_regions", id: false, force: :cascade do |t|
@@ -91,6 +92,16 @@ class HABTMTest < ActiveSupport::TestCase
       SELECT regions.* FROM regions
       INNER JOIN regions_regions habtmtest_regions_children ON habtmtest_regions_children.parent_id = regions.id
       WHERE habtmtest_regions_children.child_id = 42
+    SQL
+  end
+  
+  test '::filter :habtm_with_with_self => FILTER ON TABLE AND JOIN TABLE' do
+    query = Region.filter(regions_regions: {parent_id: 42}, name: 'name')
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT regions.* FROM regions
+      INNER JOIN regions_regions habtmtest_regions_parents ON habtmtest_regions_parents.child_id = regions.id
+      WHERE (habtmtest_regions_parents.parent_id = 42
+      AND regions.name = 'name')
     SQL
   end
 

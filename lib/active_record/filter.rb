@@ -417,6 +417,8 @@ module ActiveRecord::Filter
     end
     
     def  filter_for_habtm_join_table(klass, relation, value, options={})
+      options = options.deep_dup
+      
       filter_joins!(klass, relation.through_reflection, value, options)
       filter_nodes(relation.through_reflection.klass, value, options)
     end
