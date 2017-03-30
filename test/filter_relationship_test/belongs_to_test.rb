@@ -30,21 +30,21 @@ class BelongsToFilterTest < ActiveSupport::TestCase
       FROM photos
       WHERE (photos.account_id IS NOT NULL)
     SQL
-    
+
     query = Photo.filter(account: "true")
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT photos.*
       FROM photos
       WHERE (photos.account_id IS NOT NULL)
     SQL
-    
+
     query = Photo.filter(account: false)
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT photos.*
       FROM photos
       WHERE photos.account_id IS NULL
     SQL
-    
+
     query = Photo.filter(account: "false")
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT photos.*
@@ -63,12 +63,13 @@ class BelongsToFilterTest < ActiveSupport::TestCase
   end
 
   test "::filter :belongs_to => FILTER" do
+    $d = true
     query = Photo.filter(account: {name: 'Minx'})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT photos.*
       FROM photos
-      INNER JOIN accounts account ON account.id = photos.account_id
-      WHERE account.name = 'Minx'
+      INNER JOIN accounts ON accounts.id = photos.account_id
+      WHERE accounts.name = 'Minx'
     SQL
   end
 

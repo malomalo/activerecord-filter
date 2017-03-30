@@ -73,9 +73,9 @@ class HABTMTest < ActiveSupport::TestCase
     query = Region.filter(properties: {name: 'Property'})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT regions.* FROM regions
-      INNER JOIN properties_regions habtmtest_regions_properties ON habtmtest_regions_properties.region_id = regions.id
-      INNER JOIN properties habtmtest_regions_properties-properties ON habtmtest_regions_properties-properties.id = habtmtest_regions_properties.property_id
-      WHERE habtmtest_regions_properties-properties.name = 'Property'
+      INNER JOIN properties_regions ON properties_regions.region_id = regions.id
+      INNER JOIN properties ON properties.id = properties_regions.property_id
+      WHERE properties.name = 'Property'
     SQL
   end
 
@@ -83,15 +83,15 @@ class HABTMTest < ActiveSupport::TestCase
     query = Region.filter(regions_regions: {parent_id: 42})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT regions.* FROM regions
-      INNER JOIN regions_regions habtmtest_regions_parents ON habtmtest_regions_parents.child_id = regions.id
-      WHERE habtmtest_regions_parents.parent_id = 42
+      INNER JOIN regions_regions ON regions_regions.child_id = regions.id
+      WHERE regions_regions.parent_id = 42
     SQL
     
     query = Region.filter(regions_regions: {child_id: 42})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT regions.* FROM regions
-      INNER JOIN regions_regions habtmtest_regions_children ON habtmtest_regions_children.parent_id = regions.id
-      WHERE habtmtest_regions_children.child_id = 42
+      INNER JOIN regions_regions ON regions_regions.parent_id = regions.id
+      WHERE regions_regions.child_id = 42
     SQL
   end
   
@@ -99,9 +99,9 @@ class HABTMTest < ActiveSupport::TestCase
     query = Region.filter(regions_regions: {parent_id: 42}, name: 'name')
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT regions.* FROM regions
-      INNER JOIN regions_regions habtmtest_regions_parents ON habtmtest_regions_parents.child_id = regions.id
-      WHERE (habtmtest_regions_parents.parent_id = 42
-      AND regions.name = 'name')
+      INNER JOIN regions_regions ON regions_regions.child_id = regions.id
+      WHERE (regions_regions.parent_id = 42
+        AND regions.name = 'name')
     SQL
   end
 

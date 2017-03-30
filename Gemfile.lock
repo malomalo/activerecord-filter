@@ -38,6 +38,7 @@ GEM
     arel-extensions (1.1.0)
       arel (>= 7.0.0)
     builder (3.2.2)
+    byebug (9.0.6)
     concurrent-ruby (1.0.2)
     docile (1.1.5)
     erubis (2.7.0)
@@ -92,6 +93,7 @@ PLATFORMS
 DEPENDENCIES
   activerecord-filter!
   bundler (~> 1.11, >= 1.11.2)
+  byebug
   faker
   minitest
   minitest-reporters

@@ -23,15 +23,9 @@ class FilterTest < ActiveSupport::TestCase
     SQL
   end
 
-  test '::filter not existant filter' do
-    assert_raises(ActiveRecord::UnkownFilterError) do
-      Property.filter(id: IAmNotAFilter.new)
-    end
-  end
-
   test '::filter not existant column or filter' do
     assert_raises(ActiveRecord::UnkownFilterError) do
-      Property.filter(unkown_column: 1)
+      Property.filter(unkown_column: 1).load
     end
   end
 

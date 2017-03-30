@@ -72,9 +72,18 @@ class HasManyFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT accounts.* FROM accounts
       INNER JOIN photos ON photos.account_id = accounts.id
-      INNER JOIN photos_properties photos-hasmanyfiltertest_photos_properties ON photos-hasmanyfiltertest_photos_properties.photo_id = photos.id
-      INNER JOIN properties photos-hasmanyfiltertest_photos_properties-properties ON photos-hasmanyfiltertest_photos_properties-properties.id = photos-hasmanyfiltertest_photos_properties.property_id
-      WHERE photos-hasmanyfiltertest_photos_properties-properties.name = 'Name'
+      INNER JOIN photos_properties ON photos_properties.photo_id = photos.id
+      INNER JOIN properties ON properties.id = photos_properties.property_id
+      WHERE properties.name = 'Name'
+    SQL
+  end
+  
+  test "::filter has_many: INT" do
+    query = Account.filter(photos: 1)
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT accounts.* FROM accounts
+      INNER JOIN photos ON photos.account_id = accounts.id
+      WHERE photos.id = 1
     SQL
   end
   
