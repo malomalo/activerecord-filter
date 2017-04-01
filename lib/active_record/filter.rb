@@ -29,27 +29,36 @@ end
 
 module ActiveRecord
   class PredicateBuilder # :nodoc:
+
+    def self.filter_joins(klass, filters)
+      build_filter_joins(klass, filters).inject(&:+)
+    end
     
-    def self.filter_references(klass, filters)
+    def self.build_filter_joins(klass, filters, relations=[], custom=[])
       if filters.is_a?(Array)
-        filters.map { |f| filter_references(klass, f) }.compact
+        filters.each { |f| build_filter_joins(klass, f, relations, custom) }.compact
       elsif filters.is_a?(Hash)
-        filters.map do |key, value|
+        filters.each do |key, value|
           if klass.filters.has_key?(key.to_sym)
-            klass.filters.dig(key.to_sym, :joins)
+            js = Array(klass.filters.dig(key.to_sym, :joins))
+            js.each do |j|
+              if j.is_a?(Hash)
+                relations << j
+              end
+            end
           elsif reflection = klass._reflections[key.to_s]
             if value.is_a?(Hash)
-              {key => filter_references(reflection.klass, value)}
+              relations << {key => build_filter_joins(reflection.klass, value)}
             elsif value != true && value != false && value != 'true' && value != 'false' && !value.nil?
-              key
+              relations << key
             end
           elsif reflection = klass.reflect_on_all_associations(:has_and_belongs_to_many).find {|r| r.join_table == key.to_s && value.keys.first.to_s == r.association_foreign_key.to_s }
             reflection = klass._reflections[klass._reflections[reflection.name.to_s].delegate_reflection.options[:through].to_s]
-            {reflection.name => filter_references(reflection.klass, value)}
+            relations << {reflection.name => build_filter_joins(reflection.klass, value)}
           end
-        end.compact
+        end
       end
-      
+      [relations, custom]
     end
     
     def build_from_filter_hash(attributes, join_dependency)
@@ -87,8 +96,8 @@ module ActiveRecord
       children = attributes.flat_map do |key, value|
         if custom_filter = klass.filters[key]
           self.instance_exec(klass, table, key, value, join_dependency, &custom_filter[:block])
-        elsif column = klass.columns_hash[key.to_s]
-          expand_filter_for_column(column, value)
+        elsif column = klass.columns_hash[key.to_s] || klass.columns_hash[key.to_s.split('.').first]
+          expand_filter_for_column(key, column, value)
         elsif relation = klass.reflect_on_association(key)
           expand_filter_for_relationship(relation, value, join_dependency)
         elsif relation = klass.reflect_on_all_associations(:has_and_belongs_to_many).find {|r| r.join_table == key.to_s && value.keys.first.to_s == r.association_foreign_key.to_s }
@@ -114,108 +123,94 @@ module ActiveRecord
       end
     end
     
-    def expand_filter_for_column(column, value)
-      if column.array
-        if value.is_a?(Hash)
-          nodes = value.map do |key, subvalue|
-            converted_value = convert_filter_value(column, subvalue)
-            
-            case key.to_sym
-            when :contains
-              table.arel_attribute(column.name).contains(converted_value)
-            when :excludes
-              table.arel_attribute(column.name).contains(converted_value).not
-            when :overlaps
-              table.arel_attribute(column.name).overlaps(converted_value)
-            else
-              raise "Not Supported: #{key.to_sym}"
-            end
-          end
-          nodes.inject { |c, n| c.nil? ? n : c.and(n) }
-        else
-          table.arel_attribute(column.name).contains(convert_filter_value(column, Array(value)))
+    def expand_filter_for_column(key, column, value)
+      attribute = table.arel_attribute(column.name)
+      if column.type == :json || column.type == :jsonb
+        names = key.to_s.split('.')
+        names.shift
+        attribute = attribute.dig(names)
+      end
+      
+      if value.is_a?(Hash)
+        nodes = value.map do |key, subvalue|
+          converted_value = convert_filter_value(column, subvalue)
+          expand_filter_for_arel_attribute(column, attribute, key, converted_value)
         end
-        
+        nodes.inject { |c, n| c.nil? ? n : c.and(n) }
+      elsif value == nil
+        attribute.eq(nil)
+      elsif value == true || value == 'true'
+        column.type == :boolean ? attribute.eq(true) : attribute.not_eq(nil)
+      elsif value == false || value == 'false'
+        column.type == :boolean ? attribute.eq(false) : attribute.eq(nil)
+      elsif value.is_a?(Array) && !column.array
+        attribute.in(convert_filter_value(column, value))
+      elsif column.type != :json && column.type != :jsonb
+        converted_value = convert_filter_value(column, column.array ? Array(value) : value)
+        attribute.eq(converted_value)
       else
-        if value.is_a?(Hash)
-          nodes = value.map do |key, subvalue|
-            converted_value = convert_filter_value(column, subvalue)
-
-            case key.to_sym
-            when :equal_to, :eq
-              table.arel_attribute(column.name).eq(converted_value)
-            when :greater_than, :gt
-              table.arel_attribute(column.name).gt(converted_value)
-            when :less_than, :lt
-              table.arel_attribute(column.name).lt(converted_value)
-            when :greater_than_or_equal_to, :gteq, :gte
-              table.arel_attribute(column.name).gteq(converted_value)
-            when :less_than_or_equal_to, :lteq, :lte
-              table.arel_attribute(column.name).lteq(converted_value)
-            when :in
-              table.arel_attribute(column.name).in(converted_value)
-            when :not, :not_equal, :neq
-              table.arel_attribute(column.name).not_eq(converted_value)
-            when :not_in
-              table.arel_attribute(column.name).not_in(converted_value)
-            when :like, :ilike
-              table.arel_attribute(column.name).matches(converted_value)
-            when :ts_match
-              if converted_value.is_a?(Array)
-                table.arel_attribute(column.name).ts_query(*converted_value)
-              else
-                table.arel_attribute(column.name).ts_query(converted_value)
-              end
-            when :intersects
-              # geometry_value = if value.is_a?(Hash) # GeoJSON
-              #   Arel::Nodes::NamedFunction.new('ST_GeomFromGeoJSON', [JSON.generate(value)])
-              # elsif # EWKB
-              # elsif # WKB
-              # elsif # EWKT
-              # elsif # WKT
-              # end
-          
-              # TODO us above if to determin if SRID sent
-              geometry_value = if subvalue.is_a?(Hash)
-                Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromGeoJSON', [Arel::Nodes.build_quoted(JSON.generate(subvalue))]), 4326])
-              elsif subvalue[0,1] == "\x00" || subvalue[0,1] == "\x01" || subvalue[0,4] =~ /[0-9a-fA-F]{4}/
-                Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromEWKB', [Arel::Nodes.build_quoted(subvalue)]), 4326])
-              else
-                Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromText', [Arel::Nodes.build_quoted(subvalue)]), 4326])
-              end
-
-              Arel::Nodes::NamedFunction.new('ST_Intersects', [table.arel_attribute(column.name), geometry_value])
-            else
-              raise "Not Supported: #{key.to_sym}"
-            end
-          end
-          nodes.inject {|c, n| c.nil? ? n : c.and(n) }
-        elsif value.is_a?(Array)
-          table.arel_attribute(column.name).in(convert_filter_value(column, value))
-        elsif value == true || value == 'true'
-          if column.type == :boolean
-            table.arel_attribute(column.name).eq(true)
-          else
-            table.arel_attribute(column.name).not_eq(nil)
-          end
-        elsif value == false || value == 'false'
-          if column.type == :boolean
-            table.arel_attribute(column.name).eq(false)
-          else
-            table.arel_attribute(column.name).eq(nil)
-          end
-        elsif value == nil
-          table.arel_attribute(column.name).eq(nil)
-        # when ''
-        #   # TODO support nil. Currently rails params encode nil as empty strings,
-        #   # and we can't tell which is desired, so do both
-        #   where(table[column].eq(value).or(table[column].eq(nil)))
-        elsif table.send(:klass).column_names.include?(column.name.to_s)
-          table.arel_attribute(column.name).eq(convert_filter_value(column, value))
+        raise ActiveRecord::UnkownFilterError.new("Unkown type for #{column}. (type #{value.class})")
+      end
+      
+    end
+    
+    def expand_filter_for_arel_attribute(column, attribute, key, value)
+      case key.to_sym
+      when :contains
+        attribute.contains(column.array ? Array(value) : value)
+      when :contained_by
+        attribute.contained_by(column.array ? Array(value) : value)
+      when :equal_to, :eq
+        attribute.eq(value)
+      when :excludes
+        attribute.contains(value).not
+      when :greater_than, :gt
+        attribute.gt(value)
+      when :greater_than_or_equal_to, :gteq, :gte
+        attribute.gteq(value)
+      when :has_key
+        attribute.has_key(value)
+      when :in
+        attribute.in(value)
+      when :intersects
+        # geometry_value = if value.is_a?(Hash) # GeoJSON
+        #   Arel::Nodes::NamedFunction.new('ST_GeomFromGeoJSON', [JSON.generate(value)])
+        # elsif # EWKB
+        # elsif # WKB
+        # elsif # EWKT
+        # elsif # WKT
+        # end
+    
+        # TODO us above if to determin if SRID sent
+        geometry_value = if subvalue.is_a?(Hash)
+          Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromGeoJSON', [Arel::Nodes.build_quoted(JSON.generate(subvalue))]), 4326])
+        elsif subvalue[0,1] == "\x00" || subvalue[0,1] == "\x01" || subvalue[0,4] =~ /[0-9a-fA-F]{4}/
+          Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromEWKB', [Arel::Nodes.build_quoted(subvalue)]), 4326])
         else
-          raise ActiveRecord::UnkownFilterError.new("Unkown type for #{column}. (type #{value.class})")
+          Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromText', [Arel::Nodes.build_quoted(subvalue)]), 4326])
         end
-        
+
+        Arel::Nodes::NamedFunction.new('ST_Intersects', [attribute, geometry_value])
+      when :less_than, :lt
+        attribute.lt(value)
+      when :less_than_or_equal_to, :lteq, :lte
+        attribute.lteq(value)
+      when :like, :ilike
+        attribute.matches(value)
+      when :not, :not_equal, :neq
+        attribute.not_eq(value)
+      when :not_in
+        attribute.not_in(value)
+      when :overlaps
+        attribute.overlaps(value)
+      when :ts_match
+        if value.is_a?(Array)
+          attribute.ts_query(*value)
+        else
+          attribute.ts_query(value)
+        end
+      else
+        raise "Not Supported: #{key.to_sym}"
       end
     end
     
@@ -329,7 +324,7 @@ class ActiveRecord::Relation
     end
     
     def filter!(filters)
-      joins!(ActiveRecord::PredicateBuilder.filter_references(klass, filters))
+      joins!(ActiveRecord::PredicateBuilder.filter_joins(klass, filters))
       @filters << filters
       self
     end

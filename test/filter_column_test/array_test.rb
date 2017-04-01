@@ -17,7 +17,7 @@ class ArrayColumnFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.aliases @> '{Skyscraper 1}')
+      WHERE properties.aliases = '{Skyscraper 1}'
     SQL
   end
   
@@ -26,7 +26,7 @@ class ArrayColumnFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.aliases @> '{Skyscraper 1,Skyscraper 2}')
+      WHERE properties.aliases = '{Skyscraper 1,Skyscraper 2}'
     SQL
   end
 
