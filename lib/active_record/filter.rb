@@ -40,11 +40,15 @@ module ActiveRecord
       elsif filters.is_a?(Hash)
         filters.each do |key, value|
           if klass.filters.has_key?(key.to_sym)
-            js = Array(klass.filters.dig(key.to_sym, :joins))
-            js.each do |j|
-              if j.is_a?(Hash)
-                relations << j
+            js = klass.filters.dig(key.to_sym, :joins)
+            if js.is_a?(Array)
+              js.each do |j|
+                if j.is_a?(Hash)
+                  relations << j
+                end
               end
+            elsif js
+              relations << js
             end
           elsif reflection = klass._reflections[key.to_s]
             if value.is_a?(Hash)
@@ -253,7 +257,7 @@ module ActiveRecord
     end
     
     def expand_filter_for_join_table(relation, value, join_dependency)
-      relation = relation.klass._reflections[relation.klass._reflections[relation.name.to_s].delegate_reflection.options[:through].to_s]
+      relation = relation.active_record._reflections[relation.active_record._reflections[relation.name.to_s].delegate_reflection.options[:through].to_s]
 
       builder = associated_predicate_builder(relation.name.to_sym)
       if join_dependency
