@@ -87,6 +87,24 @@ class HasManyFilterTest < ActiveSupport::TestCase
     SQL
   end
   
+  test "::filter has_many_ids: INT" do
+    query = Account.filter(photo_ids: 1)
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT accounts.* FROM accounts
+      INNER JOIN photos ON photos.account_id = accounts.id
+      WHERE photos.id = 1
+    SQL
+  end
+  
+  test "::filter has_many_ids: [INT]" do
+    query = Account.filter(photo_ids: [1, 2])
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT accounts.* FROM accounts
+      INNER JOIN photos ON photos.account_id = accounts.id
+      WHERE photos.id IN (1, 2)
+    SQL
+  end
+  
   # test "::filter :has_many with lambda" do
   #   a1 = create(:property)
   #   a2 = create(:property)

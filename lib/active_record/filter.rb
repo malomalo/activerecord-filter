@@ -56,6 +56,8 @@ module ActiveRecord
             elsif value != true && value != false && value != 'true' && value != 'false' && !value.nil?
               relations << key
             end
+          elsif key.to_s.ends_with?('_ids') && reflection = klass._reflections[key.to_s.gsub(/_ids$/, 's')]
+            relations << reflection.name
           elsif reflection = klass.reflect_on_all_associations(:has_and_belongs_to_many).find {|r| r.join_table == key.to_s && value.keys.first.to_s == r.association_foreign_key.to_s }
             reflection = klass._reflections[klass._reflections[reflection.name.to_s].delegate_reflection.options[:through].to_s]
             relations << {reflection.name => build_filter_joins(reflection.klass, value)}
@@ -104,6 +106,8 @@ module ActiveRecord
           expand_filter_for_column(key, column, value)
         elsif relation = klass.reflect_on_association(key)
           expand_filter_for_relationship(relation, value, join_dependency)
+        elsif key.to_s.ends_with?('_ids') && relation = klass.reflect_on_association(key.to_s.gsub(/_ids$/, 's'))
+          expand_filter_for_relationship(relation, {id: value}, join_dependency)
         elsif relation = klass.reflect_on_all_associations(:has_and_belongs_to_many).find {|r| r.join_table == key.to_s && value.keys.first.to_s == r.association_foreign_key.to_s }
           expand_filter_for_join_table(relation, value, join_dependency)
         else
@@ -136,9 +140,9 @@ module ActiveRecord
       end
       
       if value.is_a?(Hash)
-        nodes = value.map do |key, subvalue|
+        nodes = value.map do |subkey, subvalue|
           converted_value = convert_filter_value(column, subvalue)
-          expand_filter_for_arel_attribute(column, attribute, key, converted_value)
+          expand_filter_for_arel_attribute(column, attribute, subkey, converted_value)
         end
         nodes.inject { |c, n| c.nil? ? n : c.and(n) }
       elsif value == nil
