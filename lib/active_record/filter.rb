@@ -45,6 +45,8 @@ module ActiveRecord
               js.each do |j|
                 if j.is_a?(Hash)
                   relations << j
+                else
+                  custom << j
                 end
               end
             elsif js
@@ -312,6 +314,11 @@ class ActiveRecord::Relation
 
     def initialize(klass, table, predicate_builder, values = {})
       @filters = []
+      super
+    end
+    
+    def initialize_copy(other)
+      @filters = @filters.deep_dup
       super
     end
     
