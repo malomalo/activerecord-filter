@@ -143,8 +143,7 @@ module ActiveRecord
       
       if value.is_a?(Hash)
         nodes = value.map do |subkey, subvalue|
-          converted_value = convert_filter_value(column, subvalue)
-          expand_filter_for_arel_attribute(column, attribute, subkey, converted_value)
+          expand_filter_for_arel_attribute(column, attribute, subkey, subvalue)
         end
         nodes.inject { |c, n| c.nil? ? n : c.and(n) }
       elsif value == nil
@@ -167,21 +166,21 @@ module ActiveRecord
     def expand_filter_for_arel_attribute(column, attribute, key, value)
       case key.to_sym
       when :contains
-        attribute.contains(column.array ? Array(value) : value)
+        attribute.contains(column.array ? Array(convert_filter_value(column, value)) : convert_filter_value(column, value))
       when :contained_by
-        attribute.contained_by(column.array ? Array(value) : value)
+        attribute.contained_by(column.array ? Array(convert_filter_value(column, value)) : convert_filter_value(column, value))
       when :equal_to, :eq
-        attribute.eq(value)
+        attribute.eq(convert_filter_value(column, value))
       when :excludes
-        attribute.contains(value).not
+        attribute.contains(convert_filter_value(column, value)).not
       when :greater_than, :gt
-        attribute.gt(value)
+        attribute.gt(convert_filter_value(column, value))
       when :greater_than_or_equal_to, :gteq, :gte
-        attribute.gteq(value)
+        attribute.gteq(convert_filter_value(column, value))
       when :has_key
-        attribute.has_key(value)
+        attribute.has_key(convert_filter_value(column, value))
       when :in
-        attribute.in(value)
+        attribute.in(convert_filter_value(column, value))
       when :intersects
         # geometry_value = if value.is_a?(Hash) # GeoJSON
         #   Arel::Nodes::NamedFunction.new('ST_GeomFromGeoJSON', [JSON.generate(value)])
@@ -202,23 +201,25 @@ module ActiveRecord
 
         Arel::Nodes::NamedFunction.new('ST_Intersects', [attribute, geometry_value])
       when :less_than, :lt
-        attribute.lt(value)
+        attribute.lt(convert_filter_value(column, value))
       when :less_than_or_equal_to, :lteq, :lte
-        attribute.lteq(value)
+        attribute.lteq(convert_filter_value(column, value))
       when :like, :ilike
-        attribute.matches(value)
+        attribute.matches(convert_filter_value(column, value))
       when :not, :not_equal, :neq
-        attribute.not_eq(value)
+        attribute.not_eq(convert_filter_value(column, value))
       when :not_in
-        attribute.not_in(value)
+        attribute.not_in(convert_filter_value(column, value))
       when :overlaps
-        attribute.overlaps(value)
+        attribute.overlaps(convert_filter_value(column, value))
       when :ts_match
         if value.is_a?(Array)
-          attribute.ts_query(*value)
+          attribute.ts_query(*convert_filter_value(column, value))
         else
-          attribute.ts_query(value)
+          attribute.ts_query(convert_filter_value(column, value))
         end
+      when :within
+        attribute.within(value)
       else
         raise "Not Supported: #{key.to_sym}"
       end
