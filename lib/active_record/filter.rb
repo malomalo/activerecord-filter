@@ -172,7 +172,7 @@ module ActiveRecord
       when :equal_to, :eq
         attribute.eq(convert_filter_value(column, value))
       when :excludes
-        attribute.contains(convert_filter_value(column, value)).not
+        attribute.excludes(convert_filter_value(column, Array(value)))
       when :greater_than, :gt
         attribute.gt(convert_filter_value(column, value))
       when :greater_than_or_equal_to, :gteq, :gte

@@ -56,7 +56,16 @@ class ArrayColumnFilterTest < ActiveSupport::TestCase
       WHERE (properties.aliases @> '{Skyscraper}')
     SQL
   end
-  
+
+  test "::filter :string_array_column => {excludes: STRING}" do
+    query = Property.filter(aliases: {excludes: 'Skyscraper'})
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE (NOT (properties.aliases @> '{Skyscraper}'))
+    SQL
+  end
+
   test "::filter :string_array_column => {excludes: [STRING]}" do
     query = Property.filter(aliases: {excludes: ['Skyscraper']})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
