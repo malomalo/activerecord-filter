@@ -117,6 +117,7 @@ module ActiveRecord
         end
       end
       
+      children.compact!
       if children.size > 1
         Arel::Nodes::And.new(children)
       else
