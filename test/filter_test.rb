@@ -7,14 +7,21 @@ class FilterTest < ActiveSupport::TestCase
       t.string   "name",                    limit: 255
       t.string   "state",                    limit: 255
     end
+
+    create_table "photos", force: :cascade do |t|
+      t.integer  "property_id"
+    end
   end
   
   class Property < ActiveRecord::Base
-  end
-  
-  class IAmNotAFilter
+    has_many :photos
   end
 
+  class Photo < ActiveRecord::Base
+    belongs_to :property
+  end
+
+  
   test '::filter nil' do
     query = Property.filter(nil)
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
@@ -47,12 +54,28 @@ class FilterTest < ActiveSupport::TestCase
     SQL
   end
 
-  test '::where(AND & OR CONDITION)' do
+  test '::filter(AND & OR CONDITION)' do
     query = Property.filter([{id: 10}, 'AND', [{id: 10}, 'OR', {name: 'name'}]])
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
       WHERE (properties.id = 10 AND ((properties.id = 10) OR (properties.name = 'name')))
+    SQL
+  end
+  
+  test '::where with eager_load' do
+    query = Property.eager_load(:photos).filter(id: 2)
+    
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT
+        properties.id AS t0_r0,
+        properties.name AS t0_r1,
+        properties.state AS t0_r2,
+        photos.id AS t1_r0,
+        photos.property_id AS t1_r1
+      FROM properties
+      LEFT OUTER JOIN photos ON photos.property_id = properties.id
+      WHERE properties.id = 2
     SQL
   end
 

@@ -350,10 +350,7 @@ class ActiveRecord::Relation
       @filter_clause_factory ||= FilterClauseFactory.new(klass, predicate_builder)
     end
     
-    # filter_clause_factory.build(filters)
     def build_arel
-      @join_dependency = nil
-      
       arel = super
       build_filters(arel)
       arel
@@ -397,6 +394,16 @@ class ActiveRecord::Relation
       end
     end
 
+  end
+end
+
+module ActiveRecord::SpawnMethods
+  def except(*skips)
+    r = relation_with values.except(*skips)
+    if !skips.include?(:where)
+      r.instance_variable_set(:@filters, instance_variable_get(:@filters))
+    end
+    r
   end
 end
 
