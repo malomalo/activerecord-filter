@@ -17,9 +17,9 @@ Gem::Specification.new do |spec|
   spec.test_files    = `git ls-files -- {test}/*`.split("\n")
   spec.require_paths = ["lib"]
 
-  spec.add_runtime_dependency 'activerecord', '~> 5.0', '>= 5.0.0'
-  spec.add_runtime_dependency 'actionpack', '~> 5.0', '>= 5.0.0'
-  spec.add_runtime_dependency 'arel-extensions', '~> 1.0', '>= 1.5.2'
+  spec.add_runtime_dependency 'activerecord', '~> 5.1'
+  spec.add_runtime_dependency 'actionpack', '~> 5.1'
+  spec.add_runtime_dependency 'arel-extensions', '~> 1.5.2'
     
   spec.add_development_dependency "pg"
   spec.add_development_dependency "bundler", '~> 1.11', '>= 1.11.2'
