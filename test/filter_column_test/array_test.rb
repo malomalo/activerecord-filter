@@ -30,6 +30,15 @@ class ArrayColumnFilterTest < ActiveSupport::TestCase
     SQL
   end
 
+  test "::filter :string_array_column => {contains: STRING}" do
+    query = Property.filter(aliases: {contains: 'Skyscraper 1'})
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE (properties.aliases @> '{Skyscraper 1}')
+    SQL
+  end
+
   test "::filter :string_array_column => {contains: [STRING, STRING]}" do
     query = Property.filter(aliases: {contains: ['Skyscraper 1']})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))

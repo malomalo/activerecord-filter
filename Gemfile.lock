@@ -49,15 +49,15 @@ GEM
     loofah (2.0.3)
       nokogiri (>= 1.5.9)
     method_source (0.8.2)
-    mini_portile2 (2.1.0)
+    mini_portile2 (2.2.0)
     minitest (5.10.1)
     minitest-reporters (1.1.14)
       ansi
       builder
       minitest (>= 5.0)
       ruby-progressbar
-    nokogiri (1.7.1)
-      mini_portile2 (~> 2.1.0)
+    nokogiri (1.8.0)
+      mini_portile2 (~> 2.2.0)
     pg (0.20.0)
     rack (2.0.1)
     rack-test (0.6.3)
@@ -101,4 +101,4 @@ DEPENDENCIES
   simplecov
 
 BUNDLED WITH
-   1.14.4
+   1.15.3

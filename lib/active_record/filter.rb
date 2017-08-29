@@ -167,9 +167,9 @@ module ActiveRecord
     def expand_filter_for_arel_attribute(column, attribute, key, value)
       case key.to_sym
       when :contains
-        attribute.contains(column.array ? Array(convert_filter_value(column, value)) : convert_filter_value(column, value))
+        attribute.contains(column.array ? convert_filter_value(column, Array(value)) : convert_filter_value(column, value))
       when :contained_by
-        attribute.contained_by(column.array ? Array(convert_filter_value(column, value)) : convert_filter_value(column, value))
+        attribute.contained_by(column.array ? convert_filter_value(column, Array(value)) : convert_filter_value(column, value))
       when :equal_to, :eq
         attribute.eq(convert_filter_value(column, value))
       when :excludes
