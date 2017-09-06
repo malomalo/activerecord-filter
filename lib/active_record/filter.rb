@@ -1,6 +1,5 @@
 require 'active_record'
 require 'arel/extensions'
-require 'action_controller/metal/strong_parameters'
 
 class ActiveRecord::UnkownFilterError < NoMethodError
 end
@@ -324,14 +323,18 @@ class ActiveRecord::Relation
       super
     end
     
-    def filter(filters)
-      if filters.is_a?(ActionController::Parameters)
-        filters = filters.to_unsafe_h 
-      elsif filters.is_a?(Array)
-        filters.map! do |f|
-          f.is_a?(ActionController::Parameters) ? f.to_unsafe_h : f
-        end
+    def clean_filters(value)
+      if value.class.name == 'ActionController::Parameters'.freeze
+        value.to_unsafe_h
+      elsif value.is_a?(Array)
+        value.map { |v| clean_filters(v) }
+      else
+        value
       end
+    end
+
+    def filter(filters)
+      filters = clean_filters(filters)
       
       if filters.nil? || filters.empty?
         self

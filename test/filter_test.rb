@@ -1,4 +1,5 @@
 require 'test_helper'
+require 'action_controller/metal/strong_parameters'
 
 class FilterTest < ActiveSupport::TestCase
 
@@ -6,6 +7,9 @@ class FilterTest < ActiveSupport::TestCase
     create_table "properties" do |t|
       t.string   "name",                    limit: 255
       t.string   "state",                    limit: 255
+
+      t.integer  'score'
+      t.datetime 'touched_at'
     end
 
     create_table "photos", force: :cascade do |t|
@@ -45,6 +49,16 @@ class FilterTest < ActiveSupport::TestCase
     SQL
   end
 
+
+  test "::filter with nested ActionController::Parameters" do
+    query = Property.filter(ActionController::Parameters.new(where: [{id: {lt: 2}}, 'OR', [{id: {gt: 3}}, 'AND', {state: 'VT'}]])[:where])
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE ((properties.id < 2) OR (properties.id > 3 AND properties.state = 'VT'))
+    SQL
+  end
+
   test '::filter(OR CONDITION)' do
     query = Property.filter([{id: 10}, 'OR', {name: 'name'}])
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
@@ -71,6 +85,8 @@ class FilterTest < ActiveSupport::TestCase
         properties.id AS t0_r0,
         properties.name AS t0_r1,
         properties.state AS t0_r2,
+        properties.score AS t0_r3,
+        properties.touched_at AS t0_r4,
         photos.id AS t1_r0,
         photos.property_id AS t1_r1
       FROM properties
