@@ -10,6 +10,7 @@ class ArrayColumnFilterTest < ActiveSupport::TestCase
   end
 
   class Property < ActiveRecord::Base
+    has_many :regions
   end
 
   test "::filter :string_array_column => STRING" do

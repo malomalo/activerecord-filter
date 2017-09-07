@@ -57,7 +57,7 @@ module ActiveRecord
             elsif value != true && value != false && value != 'true' && value != 'false' && !value.nil?
               relations << key
             end
-          elsif key.to_s.ends_with?('_ids') && reflection = klass._reflections[key.to_s.gsub(/_ids$/, 's')]
+          elsif !klass.columns_hash.has_key?(key.to_s) && key.to_s.ends_with?('_ids') && reflection = klass._reflections[key.to_s.gsub(/_ids$/, 's')]
             relations << reflection.name
           elsif reflection = klass.reflect_on_all_associations(:has_and_belongs_to_many).find {|r| r.join_table == key.to_s && value.keys.first.to_s == r.association_foreign_key.to_s }
             reflection = klass._reflections[klass._reflections[reflection.name.to_s].delegate_reflection.options[:through].to_s]
