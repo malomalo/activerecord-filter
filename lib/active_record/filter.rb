@@ -219,7 +219,17 @@ module ActiveRecord
           attribute.ts_query(convert_filter_value(column, value))
         end
       when :within
-        attribute.within(value)
+        if value.is_a?(String)
+          if /\A[0-9A-F]*\Z/i.match?(value) && (value.start_with?('00') || value.start_with?('01'))
+            attribute.within(Arel::Nodes::HexEncodedBinary.new(value))
+          else
+            attribute.within(Arel::Nodes.build_quoted(value))
+          end
+        elsif value.is_a?(Hash)
+          attribute.within(Arel::Nodes.build_quoted(value))
+        else
+          raise "Not Supported value for within: #{value.inspect}"
+        end
       else
         raise "Not Supported: #{key.to_sym}"
       end
