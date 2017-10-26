@@ -181,7 +181,7 @@ module ActiveRecord
         attribute.has_key(convert_filter_value(column, value))
       when :has_keys
         attribute.has_keys(*Array(value).map{ |v| convert_filter_value(column, v) })
-      when :has_any_keys
+      when :has_any_key
         attribute.has_any_key(*Array(value).map{ |v| convert_filter_value(column, v) })
       when :in
         attribute.in(convert_filter_value(column, value))
