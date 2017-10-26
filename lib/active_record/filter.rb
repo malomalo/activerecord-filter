@@ -178,11 +178,11 @@ module ActiveRecord
       when :greater_than_or_equal_to, :gteq, :gte
         attribute.gteq(convert_filter_value(column, value))
       when :has_key
-        attribute.has_key(convert_filter_value(column, value))
+        attribute.has_key(value)
       when :has_keys
-        attribute.has_keys(*Array(value).map{ |v| convert_filter_value(column, v) })
+        attribute.has_keys(*Array(value))
       when :has_any_key
-        attribute.has_any_key(*Array(value).map{ |v| convert_filter_value(column, v) })
+        attribute.has_any_key(*Array(value))
       when :in
         attribute.in(convert_filter_value(column, value))
       when :intersects
