@@ -327,6 +327,7 @@ class ActiveRecord::Relation
 
     def initialize(klass, table: klass.arel_table, predicate_builder: klass.predicate_builder, values: {})
       @filters = []
+      @join_dependency = nil
       super
     end
     
