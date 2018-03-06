@@ -3,7 +3,7 @@ PATH
   specs:
     activerecord-filter (5.0.0.7)
       activerecord (~> 5.2.0.rc1)
-      arel-extensions (~> 1.5.2)
+      arel-extensions (~> 1.6.0)
 
 GEM
   remote: https://rubygems.org/
@@ -34,8 +34,8 @@ GEM
       tzinfo (~> 1.1)
     ansi (1.5.0)
     arel (9.0.0)
-    arel-extensions (1.5.2)
-      arel (>= 7.0.0)
+    arel-extensions (1.6.0)
+      arel (>= 9.0.0)
     builder (3.2.3)
     byebug (10.0.0)
     concurrent-ruby (1.0.5)
