@@ -31,7 +31,7 @@ class JsonFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip)
       SELECT "properties".*
       FROM "properties"
-      WHERE ("properties"."metadata" @> '{\"json\":\"string\"}')
+      WHERE "properties"."metadata" @> '{\"json\":\"string\"}'
     SQL
   end
 
@@ -40,7 +40,7 @@ class JsonFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip)
       SELECT "properties".*
       FROM "properties"
-      WHERE ("properties"."metadata" <@ '{\"json\":\"string\"}')
+      WHERE "properties"."metadata" <@ '{\"json\":\"string\"}'
     SQL
   end
   
@@ -49,7 +49,7 @@ class JsonFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip)
       SELECT "properties".*
       FROM "properties"
-      WHERE ("properties"."metadata" ? 'string')
+      WHERE "properties"."metadata" ? 'string'
     SQL
   end
   
@@ -67,14 +67,14 @@ class JsonFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip)
       SELECT "properties".*
       FROM "properties"
-      WHERE ("properties"."metadata" IS NOT NULL)
+      WHERE "properties"."metadata" IS NOT NULL
     SQL
     
     query = Property.filter(metadata: "true")
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip)
       SELECT "properties".*
       FROM "properties"
-      WHERE ("properties"."metadata" IS NOT NULL)
+      WHERE "properties"."metadata" IS NOT NULL
     SQL
     
     query = Property.filter(metadata: false)

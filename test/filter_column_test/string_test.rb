@@ -33,7 +33,7 @@ class StringFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.name IS NOT NULL)
+      WHERE properties.name IS NOT NULL
     SQL
     
     query = Property.filter(name: false)
@@ -49,21 +49,21 @@ class StringFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.name != 'b')
+      WHERE properties.name != 'b'
     SQL
     
     query = Property.filter(name: {not_equal: 'b'})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.name != 'b')
+      WHERE properties.name != 'b'
     SQL
     
     query = Property.filter(name: {neq: 'b'})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.name != 'b')
+      WHERE properties.name != 'b'
     SQL
   end
   
@@ -72,7 +72,7 @@ class StringFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.name NOT IN ('b', 'c'))
+      WHERE properties.name NOT IN ('b', 'c')
     SQL
   end
 

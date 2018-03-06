@@ -100,8 +100,8 @@ class HABTMTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT regions.* FROM regions
       INNER JOIN regions_regions ON regions_regions.child_id = regions.id
-      WHERE (regions_regions.parent_id = 42
-        AND regions.name = 'name')
+      WHERE regions_regions.parent_id = 42
+        AND regions.name = 'name'
     SQL
   end
 

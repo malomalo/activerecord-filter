@@ -60,7 +60,7 @@ module ActiveRecord
           elsif !klass.columns_hash.has_key?(key.to_s) && key.to_s.ends_with?('_ids') && reflection = klass._reflections[key.to_s.gsub(/_ids$/, 's')]
             relations << reflection.name
           elsif reflection = klass.reflect_on_all_associations(:has_and_belongs_to_many).find {|r| r.join_table == key.to_s && value.keys.first.to_s == r.association_foreign_key.to_s }
-            reflection = klass._reflections[klass._reflections[reflection.name.to_s].delegate_reflection.options[:through].to_s]
+            reflection = klass._reflections[klass._reflections[reflection.name.to_s].send(:delegate_reflection).options[:through].to_s]
             relations << {reflection.name => build_filter_joins(reflection.klass, value)}
           end
         end
@@ -278,7 +278,7 @@ module ActiveRecord
     end
     
     def expand_filter_for_join_table(relation, value, join_dependency)
-      relation = relation.active_record._reflections[relation.active_record._reflections[relation.name.to_s].delegate_reflection.options[:through].to_s]
+      relation = relation.active_record._reflections[relation.active_record._reflections[relation.name.to_s].send(:delegate_reflection).options[:through].to_s]
 
       builder = associated_predicate_builder(relation.name.to_sym)
       if join_dependency
@@ -301,8 +301,6 @@ module ActiveRecord
       end
 
       def build(filters, join_dependency)
-        binds = []
-
         if filters.is_a?(Hash) || filters.is_a?(Array)
           # attributes = predicate_builder.resolve_column_aliases(filters)
           # attributes = klass.send(:expand_hash_conditions_for_aggregates, attributes)
@@ -314,7 +312,7 @@ module ActiveRecord
           raise ArgumentError, "Unsupported argument type: #{filters.inspect} (#{filters.class})"
         end
         
-        WhereClause.new(parts, binds)
+        WhereClause.new(parts)
       end
 
       protected
@@ -327,7 +325,7 @@ end
 class ActiveRecord::Relation
   module Filter
 
-    def initialize(klass, table, predicate_builder, values = {})
+    def initialize(klass, table: klass.arel_table, predicate_builder: klass.predicate_builder, values: {})
       @filters = []
       super
     end
@@ -367,13 +365,13 @@ class ActiveRecord::Relation
       @filter_clause_factory ||= FilterClauseFactory.new(klass, predicate_builder)
     end
     
-    def build_arel
+    def build_arel(aliases)
       arel = super
       build_filters(arel)
       arel
     end
 
-    def build_join_query(manager, buckets, join_type)
+    def build_join_query(manager, buckets, join_type, aliases)
       buckets.default = []
 
       association_joins         = buckets[:association_join]
@@ -381,33 +379,36 @@ class ActiveRecord::Relation
       join_nodes                = buckets[:join_node].uniq
       string_joins              = buckets[:string_join].map(&:strip).uniq
 
-      join_list = join_nodes + convert_join_strings_to_ast(manager, string_joins)
+      join_list = join_nodes + convert_join_strings_to_ast(string_joins)
+      alias_tracker = alias_tracker(join_list, aliases)
 
       join_dependency = ActiveRecord::Associations::JoinDependency.new(
-        @klass,
-        association_joins,
-        join_list
+        klass, table, association_joins, alias_tracker
       )
       
-      join_infos = join_dependency.join_constraints stashed_association_joins, join_type
+      joins = join_dependency.join_constraints(stashed_association_joins, join_type)
+      joins.each { |join| manager.from(join) }
+      # join_infos = join_dependency.join_constraints stashed_association_joins, join_type
 
-      join_infos.each do |info|
-        info.joins.each { |join| manager.from(join) }
-        manager.bind_values.concat info.binds
-      end
+      # join_infos.each do |info|
+      #   info.joins.each { |join| manager.from(join) }
+      #   manager.bind_values.concat info.binds
+      # end
+
+      # manager.join_sources.concat(join_list)
 
       manager.join_sources.concat(join_list)
 
-      if @klass.connection.class.name != 'ActiveRecord::ConnectionAdapters::SunstoneAPIAdapter'
+      if klass.connection.class.name != 'ActiveRecord::ConnectionAdapters::SunstoneAPIAdapter'
         @join_dependency = join_dependency
       end
       
-      manager
+      alias_tracker.aliases
     end
     
     def build_filters(manager)
       @filters.each do |filters|
-        manager.where(filter_clause_factory.build(filters, @join_dependency&.join_root).ast)
+        manager.where(filter_clause_factory.build(filters, @join_dependency&.send(:join_root)).ast)
       end
     end
 

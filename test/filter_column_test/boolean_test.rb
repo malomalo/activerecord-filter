@@ -16,14 +16,14 @@ class BooleanFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE properties.active = 't'
+      WHERE properties.active = TRUE
     SQL
     
     query = Property.filter(active: "true")
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE properties.active = 't'
+      WHERE properties.active = TRUE
     SQL
     
     
@@ -31,14 +31,14 @@ class BooleanFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE properties.active = 'f'
+      WHERE properties.active = FALSE
     SQL
     
     query = Property.filter(active: "false")
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE properties.active = 'f'
+      WHERE properties.active = FALSE
     SQL
   end
 

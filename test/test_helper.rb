@@ -15,7 +15,7 @@ require 'faker'
 # Setup the test db
 ActiveSupport.test_order = :random
 
-Minitest::Reporters.use! Minitest::Reporters::SpecReporter.new
+# Minitest::Reporters.use! Minitest::Reporters::SpecReporter.new
 
 class ActiveSupport::TestCase
   

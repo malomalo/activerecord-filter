@@ -73,7 +73,7 @@ class FilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.id = 10 AND ((properties.id = 10) OR (properties.name = 'name')))
+      WHERE properties.id = 10 AND ((properties.id = 10) OR (properties.name = 'name'))
     SQL
   end
   

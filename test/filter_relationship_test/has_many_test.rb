@@ -35,13 +35,13 @@ class HasManyFilterTest < ActiveSupport::TestCase
     query = Account.filter(photos: true)
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT accounts.* FROM accounts
-      WHERE (accounts.photos_count > 0)
+      WHERE accounts.photos_count > 0
     SQL
     
     query = Account.filter(photos: "true")
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT accounts.* FROM accounts
-      WHERE (accounts.photos_count > 0)
+      WHERE accounts.photos_count > 0
     SQL
 
 

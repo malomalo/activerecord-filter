@@ -24,8 +24,8 @@ class DatetimeFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.created_at >= '#{format_time(t2)}'
-        AND properties.created_at <= '#{format_time(t3)}')
+      WHERE properties.created_at >= '#{format_time(t2)}'
+        AND properties.created_at <= '#{format_time(t3)}'
     SQL
     
 
@@ -33,16 +33,16 @@ class DatetimeFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.created_at > '#{format_time(t1)}'
-        AND properties.created_at < '#{format_time(t2)}')
+      WHERE properties.created_at > '#{format_time(t1)}'
+        AND properties.created_at < '#{format_time(t2)}'
     SQL
 
     query = Property.filter(:created_at => {gte: t3, lte: t4})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.created_at >= '#{format_time(t3)}'
-        AND properties.created_at <= '#{format_time(t4)}')
+      WHERE properties.created_at >= '#{format_time(t3)}'
+        AND properties.created_at <= '#{format_time(t4)}'
     SQL
   end
 

@@ -28,14 +28,14 @@ class BelongsToFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT photos.*
       FROM photos
-      WHERE (photos.account_id IS NOT NULL)
+      WHERE photos.account_id IS NOT NULL
     SQL
 
     query = Photo.filter(account: "true")
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT photos.*
       FROM photos
-      WHERE (photos.account_id IS NOT NULL)
+      WHERE photos.account_id IS NOT NULL
     SQL
 
     query = Photo.filter(account: false)

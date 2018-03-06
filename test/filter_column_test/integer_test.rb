@@ -16,14 +16,14 @@ class IntegerFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.constructed > 1)
+      WHERE properties.constructed > 1
     SQL
     
     query = Property.filter(constructed: { greater_than: 1 })
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.constructed > 1)
+      WHERE properties.constructed > 1
     SQL
   end
 
@@ -32,21 +32,21 @@ class IntegerFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.constructed >= 1)
+      WHERE properties.constructed >= 1
     SQL
 
     query = Property.filter(constructed: { gteq: 1 })
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.constructed >= 1)
+      WHERE properties.constructed >= 1
     SQL
 
     query = Property.filter(constructed: { greater_than_or_equal_to: 1 })
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.constructed >= 1)
+      WHERE properties.constructed >= 1
     SQL
   end
 
@@ -55,14 +55,14 @@ class IntegerFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.constructed < 1)
+      WHERE properties.constructed < 1
     SQL
     
     query = Property.filter(constructed: { less_than: 1 })
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.constructed < 1)
+      WHERE properties.constructed < 1
     SQL
   end
 
@@ -71,21 +71,21 @@ class IntegerFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.constructed <= 1)
+      WHERE properties.constructed <= 1
     SQL
     
     query = Property.filter(constructed: { lteq: 1 })
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.constructed <= 1)
+      WHERE properties.constructed <= 1
     SQL
     
     query = Property.filter(constructed: { less_than_or_equal_to: 1 })
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.constructed <= 1)
+      WHERE properties.constructed <= 1
     SQL
   end
 
@@ -112,14 +112,14 @@ class IntegerFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.constructed IS NOT NULL)
+      WHERE properties.constructed IS NOT NULL
     SQL
 
     query = Property.filter(constructed: "true")
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
       FROM properties
-      WHERE (properties.constructed IS NOT NULL)
+      WHERE properties.constructed IS NOT NULL
     SQL
     
     query = Property.filter(constructed: false)
