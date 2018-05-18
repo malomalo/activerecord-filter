@@ -195,9 +195,9 @@ module ActiveRecord
         # end
     
         # TODO us above if to determin if SRID sent
-        geometry_value = if subvalue.is_a?(Hash)
+        geometry_value = if value.is_a?(Hash)
           Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromGeoJSON', [Arel::Nodes.build_quoted(JSON.generate(subvalue))]), 4326])
-        elsif subvalue[0,1] == "\x00" || subvalue[0,1] == "\x01" || subvalue[0,4] =~ /[0-9a-fA-F]{4}/
+        elsif value[0,1] == "\x00" || value[0,1] == "\x01" || value[0,4] =~ /[0-9a-fA-F]{4}/
           Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromEWKB', [Arel::Nodes.build_quoted(subvalue)]), 4326])
         else
           Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromText', [Arel::Nodes.build_quoted(subvalue)]), 4326])
