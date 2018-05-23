@@ -1,9 +1,9 @@
 PATH
   remote: .
   specs:
-    activerecord-filter (5.0.0.7)
+    activerecord-filter (5.0.0.8)
       activerecord (~> 5.1)
-      arel-extensions (~> 1.5.2)
+      arel-extensions (~> 1.5)
 
 GEM
   remote: https://rubygems.org/
@@ -101,4 +101,4 @@ DEPENDENCIES
   simplecov
 
 BUNDLED WITH
-   1.15.4
+   1.16.1
