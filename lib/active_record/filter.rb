@@ -376,7 +376,7 @@ class ActiveRecord::Relation
       buckets.default = []
 
       association_joins         = buckets[:association_join]
-      stashed_association_joins = buckets[:stashed_join]
+      stashed_joins             = buckets[:stashed_join]
       join_nodes                = buckets[:join_node].uniq
       string_joins              = buckets[:string_join].map(&:strip).uniq
 
@@ -384,10 +384,10 @@ class ActiveRecord::Relation
       alias_tracker = alias_tracker(join_list, aliases)
 
       join_dependency = ActiveRecord::Associations::JoinDependency.new(
-        klass, table, association_joins, alias_tracker
+        klass, table, association_joins
       )
       
-      joins = join_dependency.join_constraints(stashed_association_joins, join_type)
+      joins = join_dependency.join_constraints(stashed_joins, join_type, alias_tracker)
       joins.each { |join| manager.from(join) }
       # join_infos = join_dependency.join_constraints stashed_association_joins, join_type
 
