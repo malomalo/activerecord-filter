@@ -46,17 +46,21 @@ It can also work with array columns:
 
 ```ruby
 Property.filter(:tags => 'Skyscraper').to_sql
-# => "...WHERE 'Skyscraper' = ANY(properties.tags)..."
+# => "...WHERE properties.tags = '{'Skyscraper'}'..."
 
 Property.filter(:tags => ['Skyscraper', 'Brick']).to_sql
-# => "...WHERE (properties.aliases && '{"Skyscraper", "Brick"}')..."
+# => "...WHERE (properties.tags = '{"Skyscraper", "Brick"}')..."
+
+Property.filter(:tags => {overlaps: ['Skyscraper', 'Brick']}).to_sql
+# => "...WHERE properties.tags && '{"Skyscraper", "Brick"}')..."
+
+Property.filter(:tags => {contains: ['Skyscraper', 'Brick']}).to_sql
+# => "...WHERE accounts.tags @> '{"Skyscraper", "Brick"}')..."
+
 ```
 It can also sort on relations:
 
 ```ruby
-Photo.filter(:property => 10).to_sql
-# => "...WHERE photos.property_id = 5"
-
 Photo.filter(:property => {name: 'Empire State'}).to_sql
 # => "...INNER JOIN properties ON properties.id = photos.property_id
 # => "   WHERE properties.name = 'Empire State'"
