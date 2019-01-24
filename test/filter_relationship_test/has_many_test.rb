@@ -25,10 +25,14 @@ class HasManyFilterTest < ActiveSupport::TestCase
 
   class Photo < ActiveRecord::Base
     belongs_to :account, counter_cache: true
-    has_and_belongs_to_many :properties
+    belongs_to :property
+    filter_on :no_properties_where_state_is_null, "LEFT OUTER JOIN \"properties\" ON \"properties\".\"id\" = \"photos\".\"property_id\" AND \"properties\".\"state\" IS NULL" do |klass, table, key, value, join_dependency|
+      Property.arel_table['id'].eq(nil)
+    end
   end
 
   class Property < ActiveRecord::Base
+    has_many :photos
   end
 
   test "::filter has_many: BOOL (with counter_cache)" do
@@ -68,12 +72,11 @@ class HasManyFilterTest < ActiveSupport::TestCase
   end
     
   test "::filter nested relationships" do
-    query = Account.filter(photos: {properties: {name: 'Name'}})
+    query = Account.filter(photos: {property: {name: 'Name'}})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT accounts.* FROM accounts
       INNER JOIN photos ON photos.account_id = accounts.id
-      INNER JOIN photos_properties ON photos_properties.photo_id = photos.id
-      INNER JOIN properties ON properties.id = photos_properties.property_id
+      INNER JOIN properties ON properties.id = photos.property_id
       WHERE properties.name = 'Name'
     SQL
   end
@@ -102,6 +105,27 @@ class HasManyFilterTest < ActiveSupport::TestCase
       SELECT accounts.* FROM accounts
       INNER JOIN photos ON photos.account_id = accounts.id
       WHERE photos.id IN (1, 2)
+    SQL
+  end
+
+  test "::filter filter_on" do
+    query = Photo.filter(no_properties_where_state_is_null: true)
+    
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT photos.* FROM photos
+      LEFT OUTER JOIN properties ON properties.id = photos.property_id AND properties.state IS NULL
+      WHERE properties.id IS NULL
+    SQL
+  end  
+
+  test "::filter has_many filter_on" do
+    query = Account.filter(photos: {no_properties_where_state_is_null: true})
+    
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT accounts.* FROM accounts
+      INNER JOIN photos ON photos.account_id = accounts.id
+      LEFT OUTER JOIN properties ON properties.id = photos.property_id AND properties.state IS NULL
+      WHERE properties.id IS NULL
     SQL
   end
   

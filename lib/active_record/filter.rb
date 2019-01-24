@@ -30,7 +30,8 @@ module ActiveRecord
   class PredicateBuilder # :nodoc:
 
     def self.filter_joins(klass, filters)
-      build_filter_joins(klass, filters).inject(&:+)
+      custom = []
+      [build_filter_joins(klass, filters, [], custom), custom]
     end
     
     def self.build_filter_joins(klass, filters, relations=[], custom=[])
@@ -40,20 +41,25 @@ module ActiveRecord
         filters.each do |key, value|
           if klass.filters.has_key?(key.to_sym)
             js = klass.filters.dig(key.to_sym, :joins)
+            
             if js.is_a?(Array)
               js.each do |j|
-                if j.is_a?(Hash)
-                  relations << j
-                else
+                if j.is_a?(String)
                   custom << j
+                else
+                  relations << j
                 end
               end
             elsif js
-              relations << js
+              if js.is_a?(String)
+                custom << js
+              else
+                relations << js
+              end
             end
           elsif reflection = klass._reflections[key.to_s]
             if value.is_a?(Hash)
-              relations << {key => build_filter_joins(reflection.klass, value)}
+              relations << {key => build_filter_joins(reflection.klass, value, [], custom)}
             elsif value != true && value != false && value != 'true' && value != 'false' && !value.nil?
               relations << key
             end
@@ -65,7 +71,8 @@ module ActiveRecord
           end
         end
       end
-      [relations, custom]
+      
+      relations
     end
     
     def build_from_filter_hash(attributes, join_dependency)
@@ -357,7 +364,10 @@ class ActiveRecord::Relation
     end
     
     def filter!(filters)
-      joins!(ActiveRecord::PredicateBuilder.filter_joins(klass, filters))
+      js = ActiveRecord::PredicateBuilder.filter_joins(klass, filters)
+      js.each do |j|
+        joins!(j) if j.present?
+      end
       @filters << filters
       self
     end
