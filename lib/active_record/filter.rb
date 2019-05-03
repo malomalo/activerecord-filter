@@ -278,7 +278,7 @@ module ActiveRecord
       
       if join_dependency
         join_dependency = join_dependency.children.find { |c| c.reflection.name == relation.name }
-        builder.table.instance_variable_set(:@arel_table, join_dependency.tables.first)
+        builder.send(:table).instance_variable_set(:@arel_table, join_dependency.tables.first)
       end
       
       builder.build_from_filter_hash(value, join_dependency)
@@ -290,7 +290,7 @@ module ActiveRecord
       builder = associated_predicate_builder(relation.name.to_sym)
       if join_dependency
         join_dependency = join_dependency.children.find { |c| c.reflection.name == relation.name }
-        builder.table.instance_variable_set(:@arel_table, join_dependency.tables.first)
+        builder.send(:table).instance_variable_set(:@arel_table, join_dependency.tables.first)
       end
       builder.build_from_filter_hash(value, join_dependency)
     end
