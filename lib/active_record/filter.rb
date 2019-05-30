@@ -59,7 +59,9 @@ module ActiveRecord
             end
           elsif reflection = klass._reflections[key.to_s]
             if value.is_a?(Hash)
-              relations << {key => build_filter_joins(reflection.klass, value, [], custom)}
+              relations << {
+                key => build_filter_joins(reflection.klass, value, [], custom)
+              }
             elsif value != true && value != false && value != 'true' && value != 'false' && !value.nil?
               relations << key
             end
@@ -223,6 +225,8 @@ module ActiveRecord
         attribute.not_in(convert_filter_value(column, value))
       when :overlaps
         attribute.overlaps(convert_filter_value(column, value))
+      when :not_overlaps
+        attribute.not_overlaps(convert_filter_value(column, value))
       when :ts_match
         if value.is_a?(Array)
           attribute.ts_query(*convert_filter_value(column, value))

@@ -1,9 +1,9 @@
 PATH
   remote: .
   specs:
-    activerecord-filter (5.2.1.2)
-      activerecord (>= 5.2.1)
-      arel-extensions (>= 1.6)
+    activerecord-filter (6.0.0)
+      activerecord (>= 6.0.0.rc1)
+      arel-extensions (>= 6.0.0)
 
 GEM
   remote: https://rubygems.org/
@@ -33,18 +33,17 @@ GEM
       tzinfo (~> 1.1)
       zeitwerk (~> 2.1, >= 2.1.4)
     ansi (1.5.0)
-    arel (9.0.0)
-    arel-extensions (1.8.0)
-      arel (>= 9.0.0)
+    arel-extensions (6.0.0)
+      activerecord (>= 6.0.0.rc1)
     builder (3.2.3)
     byebug (10.0.2)
-    concurrent-ruby (1.0.5)
+    concurrent-ruby (1.1.5)
     crass (1.0.4)
     docile (1.3.0)
     erubi (1.8.0)
     faker (1.8.7)
       i18n (>= 0.7)
-    i18n (1.0.1)
+    i18n (1.6.0)
       concurrent-ruby (~> 1.0)
     json (2.1.0)
     loofah (2.2.3)
@@ -92,7 +91,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  actionpack (>= 5.2.1)
+  actionpack (>= 6.0.0.rc1)
   activerecord-filter!
   bundler
   byebug
@@ -100,7 +99,7 @@ DEPENDENCIES
   minitest
   minitest-reporters
   pg
-  railties (>= 5.2.1)
+  railties (>= 6.0.0.rc1)
   rake
   simplecov
 
