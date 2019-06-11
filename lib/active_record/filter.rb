@@ -189,9 +189,9 @@ module ActiveRecord
       when :has_key
         attribute.has_key(value)
       when :has_keys
-        attribute.has_keys(*Array(value))
+        attribute.has_keys(*Array(value).map { |x| Arel::Nodes.build_quoted(x) })
       when :has_any_key
-        attribute.has_any_key(*Array(value))
+        attribute.has_any_key(*Array(value).map { |x| Arel::Nodes.build_quoted(x) })
       when :in
         attribute.in(convert_filter_value(column, value))
       when :intersects

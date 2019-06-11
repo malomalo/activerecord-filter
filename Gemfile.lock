@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    activerecord-filter (6.0.0)
+    activerecord-filter (6.0.0.1)
       activerecord (>= 6.0.0.rc1)
       arel-extensions (>= 6.0.0)
 
