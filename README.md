@@ -56,8 +56,24 @@ Property.filter(:tags => {overlaps: ['Skyscraper', 'Brick']}).to_sql
 
 Property.filter(:tags => {contains: ['Skyscraper', 'Brick']}).to_sql
 # => "...WHERE accounts.tags @> '{"Skyscraper", "Brick"}')..."
-
 ```
+
+And JSON columns:
+
+```ruby
+Property.filter(metadata: { eq: { key: 'value' } }).to_sql
+# => "...WHERE "properties"."metadata" = '{\"key\":\"value\"}'..."
+
+Property.filter(metadata: { contains: { key: 'value' } }).to_sql
+# => "...WHERE "properties"."metadata" @> '{\"key\":\"value\"}'..."
+
+Property.filter(metadata: { has_key: 'key' }).to_sql
+# => "...WHERE "properties"."metadata" ? 'key'..."
+
+Property.filter("metadata.key": { eq: 'value' }).to_sql
+# => "...WHERE "properties"."metadata" #> '{key}' = 'value'..."
+```
+
 It can also sort on relations:
 
 ```ruby
