@@ -63,7 +63,6 @@ class BelongsToFilterTest < ActiveSupport::TestCase
   end
 
   test "::filter :belongs_to => FILTER" do
-    $d = true
     query = Photo.filter(account: {name: 'Minx'})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT photos.*
