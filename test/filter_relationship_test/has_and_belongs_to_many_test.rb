@@ -105,4 +105,15 @@ class HABTMTest < ActiveSupport::TestCase
     SQL
   end
 
+  test '::filter :habtm_with_with_self => FILTER ON JOIN TABLE RELATION' do
+    query = Region.filter(parents: { id: 42 })
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT regions.* FROM regions
+      INNER JOIN regions_regions ON regions_regions.child_id = regions.id
+      INNER JOIN regions parents_regions ON parents_regions.id = regions_regions.parent_id
+
+      WHERE regions_regions.parent_id = 42
+    SQL
+  end
+
 end
