@@ -250,7 +250,7 @@ module ActiveRecord
           raise "Not Supported value for within: #{value.inspect}"
         end
       else
-        raise "Not Supported: #{key.to_sym}"
+        raise "Not Supported: #{key.to_sym} on column \"#{column.name}\" of type #{column.type}"
       end
     end
     
