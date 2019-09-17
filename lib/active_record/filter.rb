@@ -145,7 +145,7 @@ module ActiveRecord
           klass.arel_attribute(column.name, table.send(:arel_table))
         end
       else
-        table.send(:arel_table)[column.name]
+        table.arel_attribute(column.name)
       end
 
       if column.type == :json || column.type == :jsonb
@@ -280,7 +280,15 @@ module ActiveRecord
         end
       end
       
-      builder = associated_predicate_builder(relation.name.to_sym)
+
+      builder = associated_predicate_builder(relation.name)
+      # If we can figure out comment on line 137 we might not need this.
+      if relation.macro == :has_and_belongs_to_many && table.send(:klass) == relation.klass
+        builder.send(:table).send(:arel_table).left = Arel::Nodes::TableAlias.new(
+          builder.send(:table).send(:arel_table).left,
+          "#{relation.name}_#{relation.klass.table_name}"
+        )
+      end
       builder.build_from_filter_hash(value)
     end
     
