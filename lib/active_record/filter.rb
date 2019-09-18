@@ -77,13 +77,13 @@ module ActiveRecord
       relations
     end
     
-    def build_from_filter_hash(attributes)
+    def build_from_filter_hash(attributes, relation_trail, alias_tracker)
       if attributes.is_a?(Array)
-        node = build_from_filter_hash(attributes.shift)
+        node = build_from_filter_hash(attributes.shift, relation_trail, alias_tracker)
 
         n = attributes.shift(2)
         while !n.empty?
-          n[1] = build_from_filter_hash(n[1])
+          n[1] = build_from_filter_hash(n[1], relation_trail, alias_tracker)
           if n[0] == 'AND'
             if node.is_a?(Arel::Nodes::And)
               node.children.push(n[1])
@@ -100,26 +100,26 @@ module ActiveRecord
         
         node
       elsif attributes.is_a?(Hash)
-        expand_from_filter_hash(attributes)
+        expand_from_filter_hash(attributes, relation_trail, alias_tracker)
       else
-        expand_from_filter_hash({id: attributes})
+        expand_from_filter_hash({id: attributes}, relation_trail, alias_tracker)
       end
     end
     
-    def expand_from_filter_hash(attributes)
+    def expand_from_filter_hash(attributes, relation_trail, alias_tracker)
       klass = table.send(:klass)
       
       children = attributes.flat_map do |key, value|
         if custom_filter = klass.filters[key]
-          self.instance_exec(klass, table, key, value, &custom_filter[:block])
+          self.instance_exec(klass, table, key, value, relation_trail, alias_tracker, &custom_filter[:block])
         elsif column = klass.columns_hash[key.to_s] || klass.columns_hash[key.to_s.split('.').first]
-          expand_filter_for_column(key, column, value)
+          expand_filter_for_column(key, column, value, relation_trail)
         elsif relation = klass.reflect_on_association(key)
-          expand_filter_for_relationship(relation, value)
+          expand_filter_for_relationship(relation, value, relation_trail, alias_tracker)
         elsif key.to_s.ends_with?('_ids') && relation = klass.reflect_on_association(key.to_s.gsub(/_ids$/, 's'))
-          expand_filter_for_relationship(relation, {id: value})
+          expand_filter_for_relationship(relation, {id: value}, relation_trail, alias_tracker)
         elsif relation = klass.reflect_on_all_associations(:has_and_belongs_to_many).find {|r| r.join_table == key.to_s && value.keys.first.to_s == r.association_foreign_key.to_s }
-          expand_filter_for_join_table(relation, value)
+          expand_filter_for_join_table(relation, value, relation_trail, alias_tracker)
         else
           raise ActiveRecord::UnkownFilterError.new("Unkown filter \"#{key}\" for #{klass}.")
         end
@@ -133,21 +133,12 @@ module ActiveRecord
       end
     end
     
-    def expand_filter_for_column(key, column, value)
-      # Not sure why
-      # activerecord/lib/active_record/table_metadata.rb#arel_attribute
-      # doesn't work here, something's not working with a
-      # Arel::Nodes::TableAlias, would like to go back to it one day
-      attribute = if klass = table.send(:klass)
-        if Arel::Nodes::TableAlias === table.send(:arel_table)
-          klass.arel_attribute(column.name, table.send(:arel_table).left)
-        else
-          klass.arel_attribute(column.name, table.send(:arel_table))
-        end
-      else
-        table.arel_attribute(column.name)
+    def expand_filter_for_column(key, column, value, relation_trail)
+      attribute = table.arel_attribute(column.name)
+      relation_trail.each do |rt|
+        attribute = Arel::Attributes::Relation.new(attribute, rt)
       end
-
+      
       if column.type == :json || column.type == :jsonb
         names = key.to_s.split('.')
         names.shift
@@ -254,7 +245,7 @@ module ActiveRecord
       end
     end
     
-    def expand_filter_for_relationship(relation, value)
+    def expand_filter_for_relationship(relation, value, relation_trail, alias_tracker)
       case relation.macro
       when :has_many
         if value == true || value == 'true'
@@ -279,24 +270,37 @@ module ActiveRecord
           return table.arel_attribute(relation.foreign_key).eq(nil)
         end
       end
-      
 
-      builder = associated_predicate_builder(relation.name)
-      # If we can figure out comment on line 137 we might not need this.
-      if relation.macro == :has_and_belongs_to_many && table.send(:klass) == relation.klass
-        builder.send(:table).send(:arel_table).left = Arel::Nodes::TableAlias.new(
-          builder.send(:table).send(:arel_table).left,
-          "#{relation.name}_#{relation.klass.table_name}"
-        )
-      end
-      builder.build_from_filter_hash(value)
+      builder = self.class.new(TableMetadata.new(
+        relation.klass,
+        alias_tracker.aliased_table_for(
+          relation.table_name,
+          relation.alias_candidate(table.send(:arel_table).name),
+          relation.klass.type_caster
+        ),
+        relation
+      ))
+      builder.build_from_filter_hash(value, relation_trail + [relation.name], alias_tracker)
     end
     
-    def expand_filter_for_join_table(relation, value)
+    
+    def expand_filter_for_join_table(relation, value, relation_trail, alias_tracker)
       relation = relation.active_record._reflections[relation.active_record._reflections[relation.name.to_s].send(:delegate_reflection).options[:through].to_s]
-
-      builder = associated_predicate_builder(relation.name.to_sym)
-      builder.build_from_filter_hash(value)
+      STDOUT.puts [
+        relation.table_name,
+        relation.alias_candidate(table.send(:arel_table).name)
+        
+      ].inspect
+      builder = self.class.new(TableMetadata.new(
+        relation.klass,
+        alias_tracker.aliased_table_for(
+          relation.table_name,
+          relation.alias_candidate(table.send(:arel_table).name),
+          relation.klass.type_caster
+        ),
+        relation
+      ))
+      builder.build_from_filter_hash(value, relation_trail + [relation.name], alias_tracker)
     end
 
   end
@@ -311,14 +315,9 @@ module ActiveRecord
         @predicate_builder = predicate_builder
       end
 
-      def build(filters)
+      def build(filters, alias_tracker)
         if filters.is_a?(Hash) || filters.is_a?(Array)
-          # attributes = predicate_builder.resolve_column_aliases(filters)
-          # attributes = klass.send(:expand_hash_conditions_for_aggregates, attributes)
-          # attributes.stringify_keys!
-          #
-          # attributes, binds = predicate_builder.create_binds(attributes)
-          parts = [predicate_builder.build_from_filter_hash(filters)]
+          parts = [predicate_builder.build_from_filter_hash(filters, [], alias_tracker)]
         else
           raise ArgumentError, "Unsupported argument type: #{filters.inspect} (#{filters.class})"
         end
@@ -379,13 +378,14 @@ class ActiveRecord::Relation
     
     def build_arel(aliases)
       arel = super
-      build_filters(arel)
+      my_alias_tracker = ActiveRecord::Associations::AliasTracker.create(connection, table.name, [])
+      build_filters(arel, my_alias_tracker)
       arel
     end
     
-    def build_filters(manager)
+    def build_filters(manager, aliases)
       @filters.each do |filters|
-        manager.where(filter_clause_factory.build(filters).ast)
+        manager.where(filter_clause_factory.build(filters, alias_tracker).ast)
       end
     end
 
