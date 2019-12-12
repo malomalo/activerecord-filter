@@ -87,6 +87,16 @@ class HasManyFilterTest < ActiveSupport::TestCase
       INNER JOIN properties ON properties.id = photos.property_id
       WHERE properties.name = 'Name'
     SQL
+
+    query = Account.filter(photos: [ { property: { name: 'Name' } }, { account: { name: 'Person' } } ])
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT accounts.* FROM accounts
+      INNER JOIN photos ON photos.account_id = accounts.id
+      INNER JOIN properties ON properties.id = photos.property_id
+      INNER JOIN accounts accounts_photos ON accounts_photos.id = photos.account_id
+      WHERE properties.name = 'Name'
+        AND accounts_photos.name = 'Person'
+    SQL
   end
 
   test "::filter has_many: INT" do

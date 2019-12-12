@@ -98,6 +98,13 @@ module ActiveRecord
             end
           elsif n[0] == 'OR'
             node = Arel::Nodes::Grouping.new(node).or(Arel::Nodes::Grouping.new(n[1]))
+          elsif !n[0].is_a?(String)
+            n[0] = build_from_filter_hash(n[0])
+            if node.is_a?(Arel::Nodes::And)
+              node.children.push(n[0])
+            else
+              node = node.and(n[0])
+            end
           else
             raise 'lll'
           end
