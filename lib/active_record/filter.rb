@@ -7,23 +7,23 @@ end
 module ActiveRecord::Filter
 
   delegate :filter, :filter_for, to: :all
-  
+
   def inherited(subclass)
     super
     subclass.instance_variable_set('@filters', HashWithIndifferentAccess.new)
   end
-  
+
   def filters
     @filters
   end
-  
+
   def filter_on(name, dependent_joins=nil, &block)
     @filters[name.to_s] = {
       joins: dependent_joins,
       block: block
     }
   end
-  
+
 end
 
 module ActiveRecord
@@ -33,7 +33,7 @@ module ActiveRecord
       custom = []
       [build_filter_joins(klass, filters, [], custom), custom]
     end
-    
+
     def self.build_filter_joins(klass, filters, relations=[], custom=[])
       if filters.is_a?(Array)
         filters.each { |f| build_filter_joins(klass, f, relations, custom) }.compact
@@ -41,7 +41,7 @@ module ActiveRecord
         filters.each do |key, value|
           if klass.filters.has_key?(key.to_sym)
             js = klass.filters.dig(key.to_sym, :joins)
-            
+
             if js.is_a?(Array)
               js.each do |j|
                 if j.is_a?(String)
@@ -62,6 +62,12 @@ module ActiveRecord
               relations << {
                 key => build_filter_joins(reflection.klass, value, [], custom)
               }
+            elsif value.is_a?(Array)
+              value.each do |v|
+                relations << {
+                  key => build_filter_joins(reflection.klass, v, [], custom)
+                }
+              end
             elsif value != true && value != false && value != 'true' && value != 'false' && !value.nil?
               relations << key
             end
@@ -73,10 +79,10 @@ module ActiveRecord
           end
         end
       end
-      
+
       relations
     end
-    
+
     def build_from_filter_hash(attributes, relation_trail, alias_tracker)
       if attributes.is_a?(Array)
         node = build_from_filter_hash(attributes.shift, relation_trail, alias_tracker)
@@ -92,12 +98,19 @@ module ActiveRecord
             end
           elsif n[0] == 'OR'
             node = Arel::Nodes::Grouping.new(node).or(Arel::Nodes::Grouping.new(n[1]))
+          elsif !n[0].is_a?(String)
+            n[0] = build_from_filter_hash(n[0], relation_trail, alias_tracker)
+            if node.is_a?(Arel::Nodes::And)
+              node.children.push(n[0])
+            else
+              node = node.and(n[0])
+            end
           else
             raise 'lll'
           end
           n = attributes.shift(2)
         end
-        
+
         node
       elsif attributes.is_a?(Hash)
         expand_from_filter_hash(attributes, relation_trail, alias_tracker)
@@ -105,10 +118,10 @@ module ActiveRecord
         expand_from_filter_hash({id: attributes}, relation_trail, alias_tracker)
       end
     end
-    
+
     def expand_from_filter_hash(attributes, relation_trail, alias_tracker)
       klass = table.send(:klass)
-      
+
       children = attributes.flat_map do |key, value|
         if custom_filter = klass.filters[key]
           self.instance_exec(klass, table, key, value, relation_trail, alias_tracker, &custom_filter[:block])
@@ -124,7 +137,7 @@ module ActiveRecord
           raise ActiveRecord::UnkownFilterError.new("Unkown filter \"#{key}\" for #{klass}.")
         end
       end
-      
+
       children.compact!
       if children.size > 1
         Arel::Nodes::And.new(children)
@@ -132,19 +145,19 @@ module ActiveRecord
         children.first
       end
     end
-    
+
     def expand_filter_for_column(key, column, value, relation_trail)
       attribute = table.arel_attribute(column.name)
       relation_trail.each do |rt|
         attribute = Arel::Attributes::Relation.new(attribute, rt)
       end
-      
+
       if column.type == :json || column.type == :jsonb
         names = key.to_s.split('.')
         names.shift
         attribute = attribute.dig(names)
       end
-      
+
       if value.is_a?(Hash)
         nodes = value.map do |subkey, subvalue|
           expand_filter_for_arel_attribute(column, attribute, subkey, subvalue)
@@ -164,9 +177,9 @@ module ActiveRecord
       else
         raise ActiveRecord::UnkownFilterError.new("Unkown type for #{column}. (type #{value.class})")
       end
-      
+
     end
-    
+
     def expand_filter_for_arel_attribute(column, attribute, key, value)
       case key.to_sym
       when :contains
@@ -197,7 +210,7 @@ module ActiveRecord
         # elsif # EWKT
         # elsif # WKT
         # end
-    
+
         # TODO us above if to determin if SRID sent
         geometry_value = if value.is_a?(Hash)
           Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromGeoJSON', [Arel::Nodes.build_quoted(JSON.generate(subvalue))]), 4326])
@@ -244,7 +257,7 @@ module ActiveRecord
         raise "Not Supported: #{key.to_sym} on column \"#{column.name}\" of type #{column.type}"
       end
     end
-    
+
     def expand_filter_for_relationship(relation, value, relation_trail, alias_tracker)
       case relation.macro
       when :has_many
@@ -282,14 +295,14 @@ module ActiveRecord
       ))
       builder.build_from_filter_hash(value, relation_trail + [relation.name], alias_tracker)
     end
-    
-    
+
+
     def expand_filter_for_join_table(relation, value, relation_trail, alias_tracker)
       relation = relation.active_record._reflections[relation.active_record._reflections[relation.name.to_s].send(:delegate_reflection).options[:through].to_s]
       STDOUT.puts [
         relation.table_name,
         relation.alias_candidate(table.send(:arel_table).name)
-        
+
       ].inspect
       builder = self.class.new(TableMetadata.new(
         relation.klass,
@@ -321,7 +334,7 @@ module ActiveRecord
         else
           raise ArgumentError, "Unsupported argument type: #{filters.inspect} (#{filters.class})"
         end
-        
+
         WhereClause.new(parts)
       end
 
@@ -339,12 +352,12 @@ class ActiveRecord::Relation
       @filters = []
       super
     end
-    
+
     def initialize_copy(other)
       @filters = @filters.deep_dup
       super
     end
-    
+
     def clean_filters(value)
       if value.class.name == 'ActionController::Parameters'.freeze
         value.to_unsafe_h
@@ -357,32 +370,32 @@ class ActiveRecord::Relation
 
     def filter(filters)
       filters = clean_filters(filters)
-      
+
       if filters.nil? || filters.empty?
         self
       else
         spawn.filter!(filters)
       end
     end
-    
+
     def filter!(filters)
       js = ActiveRecord::PredicateBuilder.filter_joins(klass, filters)
       js.each { |j| joins!(j) if j.present? }
       @filters << filters
       self
     end
-    
+
     def filter_clause_factory
       @filter_clause_factory ||= FilterClauseFactory.new(klass, predicate_builder)
     end
-    
+
     def build_arel(aliases)
       arel = super
       my_alias_tracker = ActiveRecord::Associations::AliasTracker.create(connection, table.name, [])
       build_filters(arel, my_alias_tracker)
       arel
     end
-    
+
     def build_filters(manager, aliases)
       @filters.each do |filters|
         manager.where(filter_clause_factory.build(filters, alias_tracker).ast)

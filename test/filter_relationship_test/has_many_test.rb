@@ -1,13 +1,13 @@
 require 'test_helper'
 
 class HasManyFilterTest < ActiveSupport::TestCase
-  
+
   schema do
     create_table "accounts", force: :cascade do |t|
       t.string   "name",                 limit: 255
       t.integer  'photos_count', null: false, default: 0
     end
-    
+
     create_table "photos", force: :cascade do |t|
       t.integer  "account_id"
       t.integer  "property_id"
@@ -18,7 +18,7 @@ class HasManyFilterTest < ActiveSupport::TestCase
       t.string   "state",                    limit: 255
     end
   end
-  
+
   class Account < ActiveRecord::Base
     has_many :photos
   end
@@ -41,7 +41,7 @@ class HasManyFilterTest < ActiveSupport::TestCase
       SELECT accounts.* FROM accounts
       WHERE accounts.photos_count > 0
     SQL
-    
+
     query = Account.filter(photos: "true")
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT accounts.* FROM accounts
@@ -54,7 +54,7 @@ class HasManyFilterTest < ActiveSupport::TestCase
       SELECT accounts.* FROM accounts
       WHERE accounts.photos_count = 0
     SQL
-    
+
     query = Account.filter(photos: "false")
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT accounts.* FROM accounts
@@ -70,7 +70,7 @@ class HasManyFilterTest < ActiveSupport::TestCase
       WHERE photos.format = 'jpg'
     SQL
   end
-    
+
   test "::filter nested relationships" do
     query = Account.filter(photos: {property: {name: 'Name'}})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
@@ -79,8 +79,26 @@ class HasManyFilterTest < ActiveSupport::TestCase
       INNER JOIN properties ON properties.id = photos.property_id
       WHERE properties.name = 'Name'
     SQL
+
+    query = Account.filter(photos: [ { property: { name: 'Name' } } ])
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT accounts.* FROM accounts
+      INNER JOIN photos ON photos.account_id = accounts.id
+      INNER JOIN properties ON properties.id = photos.property_id
+      WHERE properties.name = 'Name'
+    SQL
+
+    query = Account.filter(photos: [ { property: { name: 'Name' } }, { account: { name: 'Person' } } ])
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT accounts.* FROM accounts
+      INNER JOIN photos ON photos.account_id = accounts.id
+      INNER JOIN properties ON properties.id = photos.property_id
+      INNER JOIN accounts accounts_photos ON accounts_photos.id = photos.account_id
+      WHERE properties.name = 'Name'
+        AND accounts_photos.name = 'Person'
+    SQL
   end
-  
+
   test "::filter has_many: INT" do
     query = Account.filter(photos: 1)
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
@@ -89,7 +107,7 @@ class HasManyFilterTest < ActiveSupport::TestCase
       WHERE photos.id = 1
     SQL
   end
-  
+
   test "::filter has_many_ids: INT" do
     query = Account.filter(photo_ids: 1)
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
@@ -98,7 +116,7 @@ class HasManyFilterTest < ActiveSupport::TestCase
       WHERE photos.id = 1
     SQL
   end
-  
+
   test "::filter has_many_ids: [INT]" do
     query = Account.filter(photo_ids: [1, 2])
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
@@ -110,17 +128,17 @@ class HasManyFilterTest < ActiveSupport::TestCase
 
   test "::filter filter_on" do
     query = Photo.filter(no_properties_where_state_is_null: true)
-    
+
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT photos.* FROM photos
       LEFT OUTER JOIN properties ON properties.id = photos.property_id AND properties.state IS NULL
       WHERE properties.id IS NULL
     SQL
-  end  
+  end
 
   test "::filter has_many filter_on" do
     query = Account.filter(photos: {no_properties_where_state_is_null: true})
-    
+
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT accounts.* FROM accounts
       INNER JOIN photos ON photos.account_id = accounts.id
@@ -128,7 +146,7 @@ class HasManyFilterTest < ActiveSupport::TestCase
       WHERE properties.id IS NULL
     SQL
   end
-  
+
   # test "::filter :has_many with lambda" do
   #   a1 = create(:property)
   #   a2 = create(:property)
