@@ -3,7 +3,7 @@ PATH
   specs:
     activerecord-filter (6.0.0.4)
       activerecord (>= 6.0.0)
-      arel-extensions (>= 6.0.0)
+      arel-extensions (>= 6.0.0.5)
 
 GEM
   remote: https://rubygems.org/

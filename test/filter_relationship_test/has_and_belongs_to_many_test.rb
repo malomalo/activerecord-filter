@@ -28,8 +28,8 @@ class HABTMTest < ActiveSupport::TestCase
 
   class Region < ActiveRecord::Base
     has_and_belongs_to_many :properties
-    has_and_belongs_to_many :parents, :join_table => 'regions_regions', :class_name => 'Region', :foreign_key => 'child_id', :association_foreign_key => 'parent_id'
-    has_and_belongs_to_many :children, :join_table => 'regions_regions', :class_name => 'Region', :foreign_key => 'parent_id', :association_foreign_key => 'child_id'
+    has_and_belongs_to_many :parents, join_table: 'regions_regions', class_name: 'Region', foreign_key: 'child_id', association_foreign_key: 'parent_id'
+    has_and_belongs_to_many :children, join_table: 'regions_regions', class_name: 'Region', foreign_key: 'parent_id', association_foreign_key: 'child_id'
   end
   
   # test '::filter :habtm => INT' do
@@ -86,7 +86,7 @@ class HABTMTest < ActiveSupport::TestCase
       INNER JOIN regions_regions ON regions_regions.child_id = regions.id
       WHERE regions_regions.parent_id = 42
     SQL
-    
+
     query = Region.filter(regions_regions: {child_id: 42})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT regions.* FROM regions
@@ -94,7 +94,7 @@ class HABTMTest < ActiveSupport::TestCase
       WHERE regions_regions.child_id = 42
     SQL
   end
-  
+
   test '::filter :habtm_with_with_self => FILTER ON TABLE AND JOIN TABLE' do
     query = Region.filter(regions_regions: {parent_id: 42}, name: 'name')
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
@@ -112,7 +112,7 @@ class HABTMTest < ActiveSupport::TestCase
       INNER JOIN regions_regions ON regions_regions.child_id = regions.id
       INNER JOIN regions parents_regions ON parents_regions.id = regions_regions.parent_id
 
-      WHERE regions_regions.parent_id = 42
+      WHERE parents_regions.id = 42
     SQL
   end
 
