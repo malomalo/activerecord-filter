@@ -280,9 +280,6 @@ module ActiveRecord
             raise "Not Supported: #{relation.name}"
           end
         elsif relation.through_reflection? && value.keys == [:id]
-          puts relation.foreign_key
-          puts value.inspect
-          
           builder = self.class.new(TableMetadata.new(
             relation.through_reflection.klass,
             alias_tracker.aliased_table_for(
