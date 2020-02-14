@@ -72,11 +72,7 @@ module ActiveRecord
               relations << key
             end
           elsif !klass.columns_hash.has_key?(key.to_s) && key.to_s.ends_with?('_ids') && reflection = klass._reflections[key.to_s.gsub(/_ids$/, 's')]
-            relations << if reflection&.through_reflection?
-              reflection.through_reflection.name
-            else
-              reflection.name
-            end
+            relations << reflection.name
           elsif reflection = klass.reflect_on_all_associations(:has_and_belongs_to_many).find {|r| r.join_table == key.to_s && value.keys.first.to_s == r.association_foreign_key.to_s }
             reflection = klass._reflections[klass._reflections[reflection.name.to_s].send(:delegate_reflection).options[:through].to_s]
             relations << {reflection.name => build_filter_joins(reflection.klass, value)}
@@ -279,17 +275,6 @@ module ActiveRecord
           else
             raise "Not Supported: #{relation.name}"
           end
-        elsif relation.through_reflection? && value.keys == [:id]
-          builder = self.class.new(TableMetadata.new(
-            relation.through_reflection.klass,
-            alias_tracker.aliased_table_for(
-              relation.through_reflection.table_name,
-              relation.through_reflection.alias_candidate(table.send(:arel_table).name),
-              relation.through_reflection.klass.type_caster
-            ),
-            relation.through_reflection
-          ))
-          return builder.build_from_filter_hash({relation.foreign_key => value[:id]}, relation_trail + [relation.through_reflection.name], alias_tracker)
         end
         
       when :belongs_to

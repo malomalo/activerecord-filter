@@ -32,6 +32,7 @@ class HasManyThroughFilterTest < ActiveSupport::TestCase
     has_many :localities
   end
 
+  # TODO: Optimize this test to use the foreign_key instead of doing the extra join when where is only on id
   test "::filter has_many_through_polymorhic_ids: id" do
     query = Account.filter(region_ids: 10)
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
@@ -39,7 +40,9 @@ class HasManyThroughFilterTest < ActiveSupport::TestCase
       LEFT OUTER JOIN localities ON
         localities.record_id = accounts.id
         AND localities.record_type = 'HasManyThroughFilterTest::Account'
-      WHERE localities.region_id = 10
+      LEFT OUTER JOIN regions ON
+        regions.id = localities.region_id
+      WHERE regions.id = 10
     SQL
   end
 
