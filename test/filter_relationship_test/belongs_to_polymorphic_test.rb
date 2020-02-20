@@ -29,21 +29,27 @@ class BelongsToPolymorphicFilterTest < ActiveSupport::TestCase
   end
 
   test "::filter :belongs_to => {ID: VALUE}" do
-    query = View.filter(subject: {as: "Property", name: 'Name'})
-    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
-      SELECT views.* FROM views
-      INNER JOIN properties subject ON subject.id = views.subject_id AND views.subject_type = 'BelongsToPolymorphicFilterTest::Property'
-      WHERE subject.name = 'Name'
+    query = View.filter(subject: {as: "BelongsToPolymorphicFilterTest::Property", name: 'Name'})
+    assert_sql(<<-SQL, query)
+      SELECT views.*
+      FROM views
+      LEFT OUTER JOIN properties
+        AS properties_as_subject
+        ON properties_as_subject.id = views.subject_id AND views.subject_type = "BelongsToPolymorphicFilterTest::Property"
+      WHERE properties_as_subject.name = 'Name'
     SQL
   end
   
   test '::filter with seperate joins' do
-    query = View.filter(subject: {as: "Property", name: 'Name'}, account: {name: 'Account'})
-    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+    query = View.filter(subject: {as: "BelongsToPolymorphicFilterTest::Property", name: 'Name'}, account: {name: 'Account'})
+    assert_sql(<<-SQL, query)
       SELECT views.* FROM views
-      INNER JOIN properties subject ON subject.id = views.subject_id AND views.subject_type = 'BelongsToPolymorphicFilterTest::Property'
-      INNER JOIN accounts account ON account.id = views.account_id
-      WHERE (subject.name = 'Name' AND account.name = 'Account')
+      LEFT OUTER JOIN accounts
+        ON accounts.id = views.account_id
+      LEFT OUTER JOIN properties
+        AS properties_as_subject
+        ON properties_as_subject.id = views.subject_id AND views.subject_type = "BelongsToPolymorphicFilterTest::Property"
+      WHERE properties_as_subject.name = 'Name' AND accounts.name = 'Account'
     SQL
   end
   

@@ -59,9 +59,20 @@ module ActiveRecord
             end
           elsif reflection = klass._reflections[key.to_s]
             if value.is_a?(Hash)
-              relations << {
-                key => build_filter_joins(reflection.klass, value, [], custom)
-              }
+              relations << if reflection.polymorphic?
+                join_klass = value[:as].safe_constantize
+                <<~SQL
+                  LEFT OUTER JOIN #{join_klass.table_name}
+                    AS #{join_klass.table_name}_as_#{reflection.name}
+                    ON #{join_klass.table_name}_as_#{reflection.name}.#{join_klass.primary_key} = #{reflection.active_record.table_name}.#{reflection.foreign_key}
+                       AND #{reflection.active_record.table_name}.#{reflection.foreign_type} = "#{join_klass.name}"
+                SQL
+              else
+                {
+                  key => build_filter_joins(reflection.klass, value, [], custom)
+                }
+              end
+
             elsif value.is_a?(Array)
               value.each do |v|
                 relations << {
@@ -285,15 +296,26 @@ module ActiveRecord
         end
       end
 
-      builder = self.class.new(TableMetadata.new(
-        relation.klass,
-        alias_tracker.aliased_table_for(
-          relation.table_name,
-          relation.alias_candidate(table.send(:arel_table).name),
-          relation.klass.type_caster
-        ),
-        relation
-      ))
+      builder = if relation.polymorphic?
+        value = value.dup
+        klass = value.delete(:as).safe_constantize
+
+        self.class.new(TableMetadata.new(
+          klass,
+          Arel::Table.new("#{klass.table_name}_as_#{relation.name}", type_caster: klass.type_caster),
+          relation
+        ))
+      else
+        self.class.new(TableMetadata.new(
+          relation.klass,
+          alias_tracker.aliased_table_for(
+            relation.table_name,
+            relation.alias_candidate(table.send(:arel_table).name),
+            relation.klass.type_caster
+          ),
+          relation
+        ))
+      end
       builder.build_from_filter_hash(value, relation_trail + [relation.name], alias_tracker)
     end
 
