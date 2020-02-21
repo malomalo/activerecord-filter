@@ -61,18 +61,20 @@ module ActiveRecord
             if value.is_a?(Hash)
               relations << if reflection.polymorphic?
                 join_klass = value[:as].safe_constantize
-                <<~SQL
-                  LEFT OUTER JOIN #{join_klass.table_name}
-                    AS #{join_klass.table_name}_as_#{reflection.name}
-                    ON #{join_klass.table_name}_as_#{reflection.name}.#{join_klass.primary_key} = #{reflection.active_record.table_name}.#{reflection.foreign_key}
-                       AND #{reflection.active_record.table_name}.#{reflection.foreign_type} = "#{join_klass.name}"
-                SQL
+
+                right_table = join_klass.arel_table.alias("#{join_klass.table_name}_as_#{reflection.name}")
+                left_table = reflection.active_record.arel_table
+
+                on = right_table[join_klass.primary_key].
+                  eq(left_table[reflection.foreign_key]).
+                  and(left_table[reflection.foreign_type].eq(join_klass.name))
+
+                left_table.join(right_table, Arel::Nodes::OuterJoin).on(on).join_sources
               else
                 {
                   key => build_filter_joins(reflection.klass, value, [], custom)
                 }
               end
-
             elsif value.is_a?(Array)
               value.each do |v|
                 relations << {
@@ -287,7 +289,7 @@ module ActiveRecord
             raise "Not Supported: #{relation.name}"
           end
         end
-        
+
       when :belongs_to
         if value == true || value == 'true'
           return table.arel_attribute(relation.foreign_key).not_eq(nil)
@@ -400,6 +402,8 @@ class ActiveRecord::Relation
       js = ActiveRecord::PredicateBuilder.filter_joins(klass, filters)
       js.flatten.each do |j|
         if j.is_a?(String)
+          joins!(j)
+        elsif j.is_a?(Arel::Nodes::Join)
           joins!(j)
         elsif j.present?
           left_outer_joins!(j)
