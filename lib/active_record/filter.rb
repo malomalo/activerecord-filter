@@ -59,9 +59,22 @@ module ActiveRecord
             end
           elsif reflection = klass._reflections[key.to_s]
             if value.is_a?(Hash)
-              relations << {
-                key => build_filter_joins(reflection.klass, value, [], custom)
-              }
+              relations << if reflection.polymorphic?
+                join_klass = value[:as].safe_constantize
+
+                right_table = join_klass.arel_table.alias("#{join_klass.table_name}_as_#{reflection.name}")
+                left_table = reflection.active_record.arel_table
+
+                on = right_table[join_klass.primary_key].
+                  eq(left_table[reflection.foreign_key]).
+                  and(left_table[reflection.foreign_type].eq(join_klass.name))
+
+                left_table.join(right_table, Arel::Nodes::OuterJoin).on(on).join_sources
+              else
+                {
+                  key => build_filter_joins(reflection.klass, value, [], custom)
+                }
+              end
             elsif value.is_a?(Array)
               value.each do |v|
                 relations << {
@@ -276,6 +289,7 @@ module ActiveRecord
             raise "Not Supported: #{relation.name}"
           end
         end
+
       when :belongs_to
         if value == true || value == 'true'
           return table.arel_attribute(relation.foreign_key).not_eq(nil)
@@ -284,26 +298,32 @@ module ActiveRecord
         end
       end
 
-      builder = self.class.new(TableMetadata.new(
-        relation.klass,
-        alias_tracker.aliased_table_for(
-          relation.table_name,
-          relation.alias_candidate(table.send(:arel_table).name),
-          relation.klass.type_caster
-        ),
-        relation
-      ))
+      builder = if relation.polymorphic?
+        value = value.dup
+        klass = value.delete(:as).safe_constantize
+
+        self.class.new(TableMetadata.new(
+          klass,
+          Arel::Table.new("#{klass.table_name}_as_#{relation.name}", type_caster: klass.type_caster),
+          relation
+        ))
+      else
+        self.class.new(TableMetadata.new(
+          relation.klass,
+          alias_tracker.aliased_table_for(
+            relation.table_name,
+            relation.alias_candidate(table.send(:arel_table).name),
+            relation.klass.type_caster
+          ),
+          relation
+        ))
+      end
       builder.build_from_filter_hash(value, relation_trail + [relation.name], alias_tracker)
     end
 
 
     def expand_filter_for_join_table(relation, value, relation_trail, alias_tracker)
       relation = relation.active_record._reflections[relation.active_record._reflections[relation.name.to_s].send(:delegate_reflection).options[:through].to_s]
-      STDOUT.puts [
-        relation.table_name,
-        relation.alias_candidate(table.send(:arel_table).name)
-
-      ].inspect
       builder = self.class.new(TableMetadata.new(
         relation.klass,
         alias_tracker.aliased_table_for(
@@ -380,7 +400,15 @@ class ActiveRecord::Relation
 
     def filter!(filters)
       js = ActiveRecord::PredicateBuilder.filter_joins(klass, filters)
-      js.each { |j| joins!(j) if j.present? }
+      js.flatten.each do |j|
+        if j.is_a?(String)
+          joins!(j)
+        elsif j.is_a?(Arel::Nodes::Join)
+          joins!(j)
+        elsif j.present?
+          left_outer_joins!(j)
+        end
+      end
       @filters << filters
       self
     end

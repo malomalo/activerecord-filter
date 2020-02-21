@@ -61,4 +61,7 @@ class ActiveSupport::TestCase
     self.class.class_variable_set(:@@suite_setup_run, true)
   end
   
+  def assert_sql(expected, query)
+    assert_equal expected.strip.gsub(/"(\w+)"/, '\1').gsub(/[\s|\n]+/, ' '), query.to_sql.strip.gsub(/"(\w+)"/, '\1').gsub(/[\s|\n]+/, ' ')
+  end
 end

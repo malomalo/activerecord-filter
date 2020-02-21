@@ -66,7 +66,7 @@ class HasManyFilterTest < ActiveSupport::TestCase
     query = Account.filter(photos: {format: 'jpg'})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT accounts.* FROM accounts
-      INNER JOIN photos ON photos.account_id = accounts.id
+      LEFT OUTER JOIN photos ON photos.account_id = accounts.id
       WHERE photos.format = 'jpg'
     SQL
   end
@@ -75,25 +75,25 @@ class HasManyFilterTest < ActiveSupport::TestCase
     query = Account.filter(photos: {property: {name: 'Name'}})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT accounts.* FROM accounts
-      INNER JOIN photos ON photos.account_id = accounts.id
-      INNER JOIN properties ON properties.id = photos.property_id
+      LEFT OUTER JOIN photos ON photos.account_id = accounts.id
+      LEFT OUTER JOIN properties ON properties.id = photos.property_id
       WHERE properties.name = 'Name'
     SQL
 
     query = Account.filter(photos: [ { property: { name: 'Name' } } ])
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT accounts.* FROM accounts
-      INNER JOIN photos ON photos.account_id = accounts.id
-      INNER JOIN properties ON properties.id = photos.property_id
+      LEFT OUTER JOIN photos ON photos.account_id = accounts.id
+      LEFT OUTER JOIN properties ON properties.id = photos.property_id
       WHERE properties.name = 'Name'
     SQL
 
     query = Account.filter(photos: [ { property: { name: 'Name' } }, { account: { name: 'Person' } } ])
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT accounts.* FROM accounts
-      INNER JOIN photos ON photos.account_id = accounts.id
-      INNER JOIN properties ON properties.id = photos.property_id
-      INNER JOIN accounts accounts_photos ON accounts_photos.id = photos.account_id
+      LEFT OUTER JOIN photos ON photos.account_id = accounts.id
+      LEFT OUTER JOIN properties ON properties.id = photos.property_id
+      LEFT OUTER JOIN accounts accounts_photos ON accounts_photos.id = photos.account_id
       WHERE properties.name = 'Name'
         AND accounts_photos.name = 'Person'
     SQL
@@ -103,7 +103,7 @@ class HasManyFilterTest < ActiveSupport::TestCase
     query = Account.filter(photos: 1)
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT accounts.* FROM accounts
-      INNER JOIN photos ON photos.account_id = accounts.id
+      LEFT OUTER JOIN photos ON photos.account_id = accounts.id
       WHERE photos.id = 1
     SQL
   end
@@ -112,7 +112,7 @@ class HasManyFilterTest < ActiveSupport::TestCase
     query = Account.filter(photo_ids: 1)
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT accounts.* FROM accounts
-      INNER JOIN photos ON photos.account_id = accounts.id
+      LEFT OUTER JOIN photos ON photos.account_id = accounts.id
       WHERE photos.id = 1
     SQL
   end
@@ -121,7 +121,7 @@ class HasManyFilterTest < ActiveSupport::TestCase
     query = Account.filter(photo_ids: [1, 2])
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT accounts.* FROM accounts
-      INNER JOIN photos ON photos.account_id = accounts.id
+      LEFT OUTER JOIN photos ON photos.account_id = accounts.id
       WHERE photos.id IN (1, 2)
     SQL
   end
@@ -141,7 +141,7 @@ class HasManyFilterTest < ActiveSupport::TestCase
 
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT accounts.* FROM accounts
-      INNER JOIN photos ON photos.account_id = accounts.id
+      LEFT OUTER JOIN photos ON photos.account_id = accounts.id
       LEFT OUTER JOIN properties ON properties.id = photos.property_id AND properties.state IS NULL
       WHERE properties.id IS NULL
     SQL

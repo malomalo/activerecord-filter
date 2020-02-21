@@ -67,7 +67,7 @@ class BelongsToFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT photos.*
       FROM photos
-      INNER JOIN accounts ON accounts.id = photos.account_id
+      LEFT OUTER JOIN accounts ON accounts.id = photos.account_id
       WHERE accounts.name = 'Minx'
     SQL
   end
