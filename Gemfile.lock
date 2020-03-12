@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    activerecord-filter (6.0.0.5)
+    activerecord-filter (6.0.0.6)
       activerecord (>= 6.0.0)
       arel-extensions (>= 6.0.0.5)
 
@@ -56,7 +56,7 @@ GEM
       builder
       minitest (>= 5.0)
       ruby-progressbar
-    nokogiri (1.10.8)
+    nokogiri (1.10.9)
       mini_portile2 (~> 2.4.0)
     pg (1.2.2)
     rack (2.2.2)
@@ -75,15 +75,15 @@ GEM
       thor (>= 0.20.3, < 2.0)
     rake (13.0.1)
     ruby-progressbar (1.10.1)
-    simplecov (0.18.2)
+    simplecov (0.18.5)
       docile (~> 1.1)
       simplecov-html (~> 0.11)
-    simplecov-html (0.12.0)
+    simplecov-html (0.12.2)
     thor (1.0.1)
     thread_safe (0.3.6)
     tzinfo (1.2.6)
       thread_safe (~> 0.1)
-    zeitwerk (2.2.2)
+    zeitwerk (2.3.0)
 
 PLATFORMS
   ruby
