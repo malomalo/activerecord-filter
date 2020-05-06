@@ -6,14 +6,16 @@ class BelongsToPolymorphicFilterTest < ActiveSupport::TestCase
     create_table "views", force: :cascade do |t|
       t.string  "subject_type"
       t.integer "subject_id"
-    end
-
-    create_table "properties" do |t|
-      t.string   "name",                    limit: 255
+      t.integer  "account_id"
     end
 
     create_table "accounts" do |t|
       t.string   "name",                    limit: 255
+    end
+    
+    create_table "properties" do |t|
+      t.string   "name",                    limit: 255
+      t.integer  "account_id"
     end
   end
 
@@ -26,6 +28,7 @@ class BelongsToPolymorphicFilterTest < ActiveSupport::TestCase
   end
 
   class Property < ActiveRecord::Base
+    belongs_to :account
   end
 
   test "::filter :belongs_to => {ID: VALUE}" do
@@ -48,6 +51,13 @@ class BelongsToPolymorphicFilterTest < ActiveSupport::TestCase
       LEFT OUTER JOIN properties properties_as_subject
         ON properties_as_subject.id = views.subject_id AND views.subject_type = 'BelongsToPolymorphicFilterTest::Property'
       WHERE properties_as_subject.name = 'Name' AND accounts.name = 'Account'
+    SQL
+  end
+  
+  test '::filter beyond polymorphic boundary' do
+    query = View.filter(subject: {as: "BelongsToPolymorphicFilterTest::Property", account: {name: 'Name'}})
+    assert_sql(<<-SQL, query)
+      
     SQL
   end
 
