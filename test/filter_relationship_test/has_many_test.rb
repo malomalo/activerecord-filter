@@ -12,6 +12,7 @@ class HasManyFilterTest < ActiveSupport::TestCase
       t.integer  "account_id"
       t.integer  "property_id"
       t.string   "format",                 limit: 255
+      t.string   "tags", array: true, default: [], null: false
     end
     create_table "properties" do |t|
       t.string   "name",                    limit: 255
@@ -68,6 +69,13 @@ class HasManyFilterTest < ActiveSupport::TestCase
       SELECT accounts.* FROM accounts
       LEFT OUTER JOIN photos ON photos.account_id = accounts.id
       WHERE photos.format = 'jpg'
+    SQL
+    
+    query = Account.filter(photos: {tags: {overlaps: ['cute']}})
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT accounts.* FROM accounts
+      LEFT OUTER JOIN photos ON photos.account_id = accounts.id
+      WHERE photos.tags && '{cute}'
     SQL
   end
 
