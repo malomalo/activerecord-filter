@@ -38,8 +38,8 @@ class HasManyThroughFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT accounts.* FROM accounts
       LEFT OUTER JOIN localities ON
-        localities.record_id = accounts.id
-        AND localities.record_type = 'HasManyThroughFilterTest::Account'
+        localities.record_type = 'HasManyThroughFilterTest::Account'
+        AND localities.record_id = accounts.id
       LEFT OUTER JOIN regions ON
         regions.id = localities.region_id
       WHERE regions.id = 10
