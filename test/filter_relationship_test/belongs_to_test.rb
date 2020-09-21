@@ -71,6 +71,20 @@ class BelongsToFilterTest < ActiveSupport::TestCase
       WHERE accounts.name = 'Minx'
     SQL
   end
+  
+  test "::filter :belonts_to with OR" do
+    query = Photo.filter([
+      {account: {name: 'Batman'}},
+      'OR',
+      {account: {name: 'Robin'}}
+    ])
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT photos.*
+      FROM photos
+      LEFT OUTER JOIN accounts ON accounts.id = photos.account_id
+      WHERE ((accounts.name = 'Batman') OR (accounts.name = 'Robin'))
+    SQL
+  end
 
   # test "::filter on model and belongs_to_association" do
   #   a1 = create(:property, photos_count: 1)
