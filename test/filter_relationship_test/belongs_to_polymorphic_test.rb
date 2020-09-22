@@ -57,7 +57,12 @@ class BelongsToPolymorphicFilterTest < ActiveSupport::TestCase
   test '::filter beyond polymorphic boundary' do
     query = View.filter(subject: {as: "BelongsToPolymorphicFilterTest::Property", account: {name: 'Name'}})
     assert_sql(<<-SQL, query)
-      
+      SELECT views.* FROM views
+      LEFT OUTER JOIN properties properties_as_subject
+        ON properties_as_subject.id = views.subject_id AND views.subject_type = 'BelongsToPolymorphicFilterTest::Property'
+      LEFT OUTER JOIN accounts
+        ON accounts.id = properties_as_subject.account_id
+      WHERE accounts.name = 'Name'
     SQL
   end
 

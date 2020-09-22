@@ -4,6 +4,24 @@ require 'arel/extensions'
 class ActiveRecord::UnkownFilterError < NoMethodError
 end
 
+class ActiveRecord::Associations::AliasTracker
+
+  def initialize(connection, aliases)
+    @aliases    = aliases
+    @connection = connection
+    @relation_trail = {}
+  end
+  
+  def aliased_table_for_relation(trail, relation, table_name = nil)
+    @relation_trail[trail + [relation.name]] ||= aliased_table_for(
+      relation.table_name,
+      relation.alias_candidate(table_name),
+      relation.klass.type_caster
+    )
+  end
+
+end
+
 module ActiveRecord::Filter
 
   delegate :filter, :filter_for, to: :all
@@ -310,11 +328,7 @@ module ActiveRecord
       else
         self.class.new(TableMetadata.new(
           relation.klass,
-          alias_tracker.aliased_table_for(
-            relation.table_name,
-            relation.alias_candidate(table.send(:arel_table).name),
-            relation.klass.type_caster
-          ),
+          alias_tracker.aliased_table_for_relation(relation_trail, relation, table.send(:arel_table).name),
           relation
         ))
       end
@@ -326,11 +340,7 @@ module ActiveRecord
       relation = relation.active_record._reflections[relation.active_record._reflections[relation.name.to_s].send(:delegate_reflection).options[:through].to_s]
       builder = self.class.new(TableMetadata.new(
         relation.klass,
-        alias_tracker.aliased_table_for(
-          relation.table_name,
-          relation.alias_candidate(table.send(:arel_table).name),
-          relation.klass.type_caster
-        ),
+        alias_tracker.aliased_table_for_relation(relation_trail, relation, table.send(:arel_table).name),
         relation
       ))
       builder.build_from_filter_hash(value, relation_trail + [relation.name], alias_tracker)
@@ -424,7 +434,7 @@ class ActiveRecord::Relation
       arel
     end
 
-    def build_filters(manager, aliases)
+    def build_filters(manager, alias_tracker)
       @filters.each do |filters|
         manager.where(filter_clause_factory.build(filters, alias_tracker).ast)
       end
