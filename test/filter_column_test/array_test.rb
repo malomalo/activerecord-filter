@@ -21,7 +21,7 @@ class ArrayColumnFilterTest < ActiveSupport::TestCase
       WHERE properties.aliases = '{Skyscraper 1}'
     SQL
   end
-  
+
   test "::filter :string_array_column => [STRING, STRING]" do
     query = Property.filter(aliases: ['Skyscraper 1', 'Skyscraper 2'])
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
@@ -48,7 +48,25 @@ class ArrayColumnFilterTest < ActiveSupport::TestCase
       WHERE properties.aliases @> '{Skyscraper 1}'
     SQL
   end
-  
+
+  test "::filter :string_array_column => {contained_by: STRING}" do
+    query = Property.filter(aliases: {contained_by: 'Skyscraper 1'})
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.aliases <@ '{Skyscraper 1}'
+    SQL
+  end
+
+  test "::filter :string_array_column => {contained_by: [STRING, STRING]}" do
+    query = Property.filter(aliases: {contained_by: ['Skyscraper 1', 'Skyscraper']})
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.aliases <@ '{Skyscraper 1,Skyscraper}'
+    SQL
+  end
+
   test "::filter :string_array_column => {overlaps: [STRING, STRING]}" do
     query = Property.filter(aliases: {overlaps: ['Skyscraper 2', 'Skyscraper']})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
@@ -84,7 +102,7 @@ class ArrayColumnFilterTest < ActiveSupport::TestCase
       WHERE NOT (properties.aliases @> '{Skyscraper}')
     SQL
   end
-  
+
   test "::filter :int_array_column => {overlaps: [INT]}" do
     query = Property.filter(region_ids: {overlaps: [10]})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))

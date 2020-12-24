@@ -25,6 +25,8 @@ class BelongsToPolymorphicFilterTest < ActiveSupport::TestCase
   end
 
   class Account < ActiveRecord::Base
+    belongs_to :friend, class_name: 'BelongsToPolymorphicFilterTest::Account'
+    belongs_to :other_friend, class_name: 'BelongsToPolymorphicFilterTest::Account'
   end
 
   class Property < ActiveRecord::Base
@@ -36,9 +38,9 @@ class BelongsToPolymorphicFilterTest < ActiveSupport::TestCase
     assert_sql(<<-SQL, query)
       SELECT views.*
       FROM views
-      LEFT OUTER JOIN properties properties_as_subject
-        ON properties_as_subject.id = views.subject_id AND views.subject_type = 'BelongsToPolymorphicFilterTest::Property'
-      WHERE properties_as_subject.name = 'Name'
+      LEFT OUTER JOIN properties
+        ON properties.id = views.subject_id AND views.subject_type = 'BelongsToPolymorphicFilterTest::Property'
+      WHERE properties.name = 'Name'
     SQL
   end
 
@@ -48,22 +50,52 @@ class BelongsToPolymorphicFilterTest < ActiveSupport::TestCase
       SELECT views.* FROM views
       LEFT OUTER JOIN accounts
         ON accounts.id = views.account_id
-      LEFT OUTER JOIN properties properties_as_subject
-        ON properties_as_subject.id = views.subject_id AND views.subject_type = 'BelongsToPolymorphicFilterTest::Property'
-      WHERE properties_as_subject.name = 'Name' AND accounts.name = 'Account'
+      LEFT OUTER JOIN properties
+        ON properties.id = views.subject_id AND views.subject_type = 'BelongsToPolymorphicFilterTest::Property'
+      WHERE properties.name = 'Name' AND accounts.name = 'Account'
     SQL
   end
-  
+
   test '::filter beyond polymorphic boundary' do
-    query = View.filter(subject: {as: "BelongsToPolymorphicFilterTest::Property", account: {name: 'Name'}})
+    query = View.filter({
+      subject: {
+        as: "BelongsToPolymorphicFilterTest::Property",
+        account: {name: 'Name'}
+      }
+    })
+
     assert_sql(<<-SQL, query)
       SELECT views.* FROM views
-      LEFT OUTER JOIN properties properties_as_subject
-        ON properties_as_subject.id = views.subject_id AND views.subject_type = 'BelongsToPolymorphicFilterTest::Property'
+      LEFT OUTER JOIN properties
+        ON properties.id = views.subject_id
+        AND views.subject_type = 'BelongsToPolymorphicFilterTest::Property'
       LEFT OUTER JOIN accounts
-        ON accounts.id = properties_as_subject.account_id
+        ON accounts.id = properties.account_id
       WHERE accounts.name = 'Name'
     SQL
   end
 
+  test '::filter beyond polymorphic boundary with the same table twice' do
+    query = View.filter({
+      subject: {
+        as: "BelongsToPolymorphicFilterTest::Account",
+        friend: {name: 'Name'},
+        other_friend: {name: 'Name2'}
+      }
+    })
+    
+    assert_sql(<<-SQL, query)
+      SELECT views.* FROM views
+      LEFT OUTER JOIN accounts
+        ON accounts.id = views.subject_id
+        AND views.subject_type = 'BelongsToPolymorphicFilterTest::Account'
+      LEFT OUTER JOIN accounts friends_accounts
+        ON friends_accounts.id = accounts.friend_id
+      LEFT OUTER JOIN accounts other_friends_accounts
+        ON other_friends_accounts.id = accounts.other_friend_id
+      WHERE
+        friends_accounts.name = 'Name'
+        AND other_friends_accounts.name = 'Name2'
+      SQL
+  end
 end
