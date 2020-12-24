@@ -11,7 +11,7 @@ class BooleanFilterTest < ActiveSupport::TestCase
   class Property < ActiveRecord::Base
   end
 
-  test "::filter :boolean_column => boolean " do
+  test "::filter :boolean_column => boolean" do
     query = Property.filter(active: true)
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*
@@ -42,7 +42,7 @@ class BooleanFilterTest < ActiveSupport::TestCase
     SQL
   end
 
-  test "::filter :boolean_column => nil " do
+  test "::filter :boolean_column => nil" do
     query = Property.filter(active: nil)
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT properties.*

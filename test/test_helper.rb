@@ -40,16 +40,15 @@ class ActiveSupport::TestCase
   
   set_callback(:setup, :before) do
     if !self.class.class_variable_defined?(:@@suite_setup_run) && self.class.class_variable_defined?(:@@schema)
-      configuration = {
+      ActiveRecord::Base.establish_connection({
         adapter:  "postgresql",
         database: "activerecord-filter-test",
         encoding: "utf8"
-      }.stringify_keys
-    
-      db_tasks = ActiveRecord::Tasks::PostgreSQLDatabaseTasks.new(configuration)
-      db_tasks.purge
+      })
 
-      ActiveRecord::Base.establish_connection(configuration)
+      db_config = ActiveRecord::Base.connection_db_config
+      db_tasks = ActiveRecord::Tasks::PostgreSQLDatabaseTasks.new(db_config)
+      db_tasks.purge
 
       ActiveRecord::Migration.suppress_messages do
         ActiveRecord::Schema.define(&self.class.class_variable_get(:@@schema))
