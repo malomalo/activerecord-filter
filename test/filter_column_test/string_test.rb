@@ -75,5 +75,23 @@ class StringFilterTest < ActiveSupport::TestCase
       WHERE properties.name NOT IN ('b', 'c')
     SQL
   end
+  
+  test "::filter array_column: {like: STRING}" do
+    query = Property.filter(name: {like: 'nam%'})
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.name LIKE 'nam%'
+    SQL
+  end
+  
+  test "::filter array_column: {ilike: STRING}" do
+    query = Property.filter(name: {ilike: 'nam%'})
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.name ILIKE 'nam%'
+    SQL
+  end
 
 end

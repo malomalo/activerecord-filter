@@ -257,8 +257,10 @@ module ActiveRecord
         attribute.lt(value)
       when :less_than_or_equal_to, :lteq, :lte
         attribute.lteq(value)
-      when :like, :ilike
-        attribute.matches(value)
+      when :like
+        attribute.matches(value, nil, true)
+      when :ilike
+        attribute.matches(value, nil, false)
       when :not, :not_equal, :neq
         attribute.not_eq(value)
       when :not_in

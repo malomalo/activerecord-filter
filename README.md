@@ -73,6 +73,9 @@ String columns:
 Property.filter(name: {like: 'nam%'}).to_sql
 # => "... WHERE properties.name LIKE 'nam%' ..."
 
+Property.filter(name: {ilike: 'nam%'}).to_sql
+# => "... WHERE properties.name ILIKE 'nam%' ..."
+
 Property.filter(name: {ts_match: 'name'}).to_sql
 # => "... WHERE to_tsvector("properties"."name") @@ to_tsquery('name') ..."
 ```
