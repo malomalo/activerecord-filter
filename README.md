@@ -125,6 +125,6 @@ It can also sort on relations:
 
 ```ruby
 Photo.filter(property: {name: 'Empire State'}).to_sql
-# => "... INNER JOIN properties ON properties.id = photos.property_id ...
+# => "... LEFT OUTER JOIN properties ON properties.id = photos.property_id ...
 # => "... WHERE properties.name = 'Empire State'"
 ```
