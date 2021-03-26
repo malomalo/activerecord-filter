@@ -1,6 +1,6 @@
-# ActiveRecord::filter
+# ActiveRecord::Filter
 
-`ActiveRecord::filter` provides and easy way to accept user input and filter a query by the input.
+`ActiveRecord::Filter` provides and easy way to accept user input and filter a query by the input.
 
 Installtion
 -----------
