@@ -432,7 +432,7 @@ class ActiveRecord::Relation
       @filter_clause_factory ||= FilterClauseFactory.new(klass, predicate_builder)
     end
 
-    def build_arel(aliases)
+    def build_arel(aliases = nil)
       arel = super
       my_alias_tracker = ActiveRecord::Associations::AliasTracker.create(connection, table.name, [])
       build_filters(arel, my_alias_tracker)
