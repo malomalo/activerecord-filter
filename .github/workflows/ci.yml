@@ -36,7 +36,7 @@ jobs:
     name: ActiveRecord PostgresQL Test
     strategy:
       matrix:
-        rails: [v6.1.3]
+        rails: [v6.1.3, v6.1.4]
         
     runs-on: ubuntu-20.04
 
