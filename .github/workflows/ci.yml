@@ -25,10 +25,9 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: 3.0
+          bundler-cache: true # 'bundle install' and cache
 
       - uses: actions/checkout@v2
-
-      - run: bundle
 
       - run: bundle exec rake test
 
