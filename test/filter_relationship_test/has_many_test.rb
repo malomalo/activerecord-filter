@@ -22,6 +22,64 @@ class HasManyFilterTest < ActiveSupport::TestCase
 
   class Account < ActiveRecord::Base
     has_many :photos
+    
+    js = -> (filters) do
+      x = if filters.is_a?(Array) && filters.size > 1
+        reflection = self.reflect_on_association(:photos)
+        filters.reduce([]) do |sum, f|
+          if !f.is_a?(String)
+            right_table = reflection.klass.arel_table.alias("photos_#{sum.size}")
+            left_table = reflection.active_record.arel_table
+            on = right_table[reflection.foreign_key].eq(left_table[reflection.klass.primary_key])
+            sum + left_table.join(right_table, Arel::Nodes::OuterJoin).on(on).join_sources
+          else
+            sum
+          end
+        end
+      else
+        :photos
+      end
+    end
+    
+    filter_on :joinalias, js do |klass, table, key, value, relation_trail, alias_tracker|
+      if value.is_a?(Array) && value.size > 1
+        reflection = klass.reflect_on_association(:photos)
+        
+        builder = ActiveRecord::PredicateBuilder.new(ActiveRecord::TableMetadata.new(reflection.klass, reflection.klass.arel_table.alias("photos_0"), reflection))
+        node = builder.build_from_filter_hash(value.shift, relation_trail + [reflection.name], alias_tracker)
+        n = value.shift(2)
+        t = 1
+        while !n.empty?
+          builder = ActiveRecord::PredicateBuilder.new(ActiveRecord::TableMetadata.new(reflection.klass, reflection.klass.arel_table.alias("photos_#{t}"), reflection))
+          t += 1
+          n[1] = builder.build_from_filter_hash(n[1], relation_trail + [reflection.name], alias_tracker)
+          if n[0] == 'AND'
+            if node.is_a?(Arel::Nodes::And)
+              node.children.push(n[1])
+            else
+              node = node.and(n[1])
+            end
+          elsif n[0] == 'OR'
+            node = Arel::Nodes::Grouping.new(node).or(Arel::Nodes::Grouping.new(n[1]))
+          elsif !n[0].is_a?(String)
+            builder = ActiveRecord::PredicateBuilder.new(ActiveRecord::TableMetadata.new(reflection.klass, reflection.klass.arel_table.alias("photos_#{t}"), reflection))
+            t += 1
+            n[0] = builder.build_from_filter_hash(n[0], relation_trail + [reflection.name], alias_tracker)
+            if node.is_a?(Arel::Nodes::And)
+              node.children.push(n[0])
+            else
+              node = node.and(n[0])
+            end
+          else
+            raise 'lll'
+          end
+          n = value.shift(2)
+        end
+        node
+      else
+        expand_filter_for_relationship(relation, value, relation_trail, alias_tracker)
+      end
+    end
   end
 
   class Photo < ActiveRecord::Base
@@ -165,4 +223,15 @@ class HasManyFilterTest < ActiveSupport::TestCase
   #   assert_equal [a2], Property.filter(:listings => { :type => 'sublease'} )
   # end
 
+  test "::filter custom!" do
+    query = Account.filter(joinalias: [{id: 1}, 'AND', {id: 2}])
+
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT accounts.* FROM accounts
+      LEFT OUTER JOIN photos photos_0 ON photos_0.account_id = accounts.id
+      LEFT OUTER JOIN photos photos_1 ON photos_1.account_id = accounts.id
+      WHERE photos_0.id = 1
+        AND photos_1.id = 2
+    SQL
+  end
 end
