@@ -1,5 +1,5 @@
 module ActiveRecord
   module Filter
-    VERSION = '6.1.0.2'
+    VERSION = '7.0.0'
   end
 end
