@@ -1,5 +1,5 @@
 ActiveRecord::Base.establish_connection({
-  adapter:  "postgresql",
+  adapter:  "postgis",
   database: "activerecord-filter-test",
   encoding: "utf8"
 })

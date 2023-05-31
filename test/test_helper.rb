@@ -12,6 +12,7 @@ require 'minitest/unit'
 require 'minitest/reporters'
 require 'active_record/filter'
 require 'faker'
+require 'activerecord-postgis-adapter'
 
 # Setup the test db
 ActiveSupport.test_order = :random
@@ -41,7 +42,7 @@ class ActiveSupport::TestCase
   set_callback(:setup, :before) do
     if !self.class.class_variable_defined?(:@@suite_setup_run) && self.class.class_variable_defined?(:@@schema)
       ActiveRecord::Base.establish_connection({
-        adapter:  "postgresql",
+        adapter:  "postgis",
         database: "activerecord-filter-test",
         encoding: "utf8"
       })
@@ -61,6 +62,9 @@ class ActiveSupport::TestCase
   end
   
   def assert_sql(expected, query)
-    assert_equal expected.strip.gsub(/"(\w+)"/, '\1').gsub(/[\s|\n]+/, ' '), query.to_sql.strip.gsub(/"(\w+)"/, '\1').gsub(/[\s|\n]+/, ' ')
+    assert_equal(
+          expected.strip.gsub(/"(\w+)"/, '\1').gsub(/\(\s+/, '(').gsub(/\s+\)/, ')').gsub(/[\s|\n]+/, ' '),
+      query.to_sql.strip.gsub(/"(\w+)"/, '\1').gsub(/\(\s+/, '(').gsub(/\s+\)/, ')').gsub(/[\s|\n]+/, ' ')
+    )
   end
 end

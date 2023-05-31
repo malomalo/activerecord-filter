@@ -188,8 +188,14 @@ module ActiveRecord
         names = key.to_s.split('.')
         names.shift
         attribute = attribute.dig(names)
+      elsif column.type == :geometry
+        value = if value.is_a?(Hash)
+          value.transform_values { |v| geometry_from_value(v) }
+        else
+          geometry_from_value(value)
+        end
       end
-
+      
       if value.is_a?(Hash)
         nodes = value.map do |subkey, subvalue|
           expand_filter_for_arel_attribute(column, attribute, subkey, subvalue)
@@ -212,14 +218,39 @@ module ActiveRecord
 
     end
 
+    # TODO determine if SRID sent and cast to correct SRID
+    def geometry_from_value(value)
+      if value.is_a?(Array)
+        value.map { |g| geometry_from_value(g) }
+      elsif value.is_a?(Hash)
+        Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromGeoJSON', [Arel::Nodes.build_quoted(JSON.generate(value))]), 4326])
+      elsif value[0,1] == "\x00" || value[0,1] == "\x01"
+        Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromEWKB', [Arel::Nodes::BinaryValue.new(value)]), 4326])
+      elsif value[0,4] =~ /[0-9a-fA-F]{4}/
+        Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromEWKB', [Arel::Nodes::HexEncodedBinaryValue.new(value)]), 4326])
+      else
+        Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromText', [Arel::Nodes.build_quoted(value)]), 4326])
+      end
+    end
+    
     def expand_filter_for_arel_attribute(column, attribute, key, value)
       case key.to_sym
       when :contains
-        attribute.contains(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
+        case column.type
+        when :geometry
+          Arel::Nodes::NamedFunction.new('ST_Contains', [attribute, value])
+        else
+          attribute.contains(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
+        end
       when :contained_by
         attribute.contained_by(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
       when :equal_to, :eq
-        attribute.eq(value)
+        case column.type
+        when :geometry
+          Arel::Nodes::NamedFunction.new('ST_Equals', [attribute, value])
+        else
+          attribute.eq(value)
+        end
       when :excludes
         attribute.excludes(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
       when :greater_than, :gt
@@ -235,24 +266,7 @@ module ActiveRecord
       when :in
         attribute.in(value)
       when :intersects
-        # geometry_value = if value.is_a?(Hash) # GeoJSON
-        #   Arel::Nodes::NamedFunction.new('ST_GeomFromGeoJSON', [JSON.generate(value)])
-        # elsif # EWKB
-        # elsif # WKB
-        # elsif # EWKT
-        # elsif # WKT
-        # end
-
-        # TODO us above if to determin if SRID sent
-        geometry_value = if value.is_a?(Hash)
-          Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromGeoJSON', [Arel::Nodes.build_quoted(JSON.generate(subvalue))]), 4326])
-        elsif value[0,1] == "\x00" || value[0,1] == "\x01" || value[0,4] =~ /[0-9a-fA-F]{4}/
-          Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromEWKB', [Arel::Nodes.build_quoted(subvalue)]), 4326])
-        else
-          Arel::Nodes::NamedFunction.new('ST_SetSRID', [Arel::Nodes::NamedFunction.new('ST_GeomFromText', [Arel::Nodes.build_quoted(subvalue)]), 4326])
-        end
-
-        Arel::Nodes::NamedFunction.new('ST_Intersects', [attribute, geometry_value])
+        Arel::Nodes::NamedFunction.new('ST_Intersects', [attribute, geometry_from_value(value)])
       when :less_than, :lt
         attribute.lt(value)
       when :less_than_or_equal_to, :lteq, :lte
@@ -276,16 +290,11 @@ module ActiveRecord
           attribute.ts_query(value)
         end
       when :within
-        if value.is_a?(String)
-          if /\A[0-9A-F]*\Z/i.match?(value) && (value.start_with?('00') || value.start_with?('01'))
-            attribute.within(Arel::Nodes::HexEncodedBinary.new(value))
-          else
-            attribute.within(Arel::Nodes.build_quoted(value))
-          end
-        elsif value.is_a?(Hash)
-          attribute.within(Arel::Nodes.build_quoted(value))
+        case column.type
+        when :geometry
+          Arel::Nodes::NamedFunction.new('ST_Within', [attribute, value])
         else
-          raise "Not Supported value for within: #{value.inspect}"
+          attribute.within(Arel::Nodes.build_quoted(value))
         end
       else
         raise "Not Supported: #{key.to_sym} on column \"#{column.name}\" of type #{column.type}"
