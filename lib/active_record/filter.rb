@@ -47,6 +47,21 @@ module ActiveRecord
       custom = []
       [build_filter_joins(klass, filters, [], custom), custom]
     end
+    
+    def self.materialize_joins(filters, js, custom, relations)
+      return if js.nil?
+      
+      case js
+      when Array
+        js.map { |j| materialize_joins(filters, j, custom, relations) }
+      when Proc
+        materialize_joins(filters, js.call(filters), custom, relations)
+      when String
+        custom << js
+      else
+        relations << js
+      end
+    end
 
     def self.build_filter_joins(klass, filters, relations=[], custom=[])
       if filters.is_a?(Array)
@@ -54,23 +69,7 @@ module ActiveRecord
       elsif filters.is_a?(Hash)
         filters.each do |key, value|
           if klass.filters.has_key?(key.to_sym)
-            js = klass.filters.dig(key.to_sym, :joins)
-
-            if js.is_a?(Array)
-              js.each do |j|
-                if j.is_a?(String)
-                  custom << j
-                else
-                  relations << j
-                end
-              end
-            elsif js
-              if js.is_a?(String)
-                custom << js
-              else
-                relations << js
-              end
-            end
+            materialize_joins(filters[key], klass.filters.dig(key.to_sym, :joins), custom, relations)
           elsif reflection = klass._reflections[key.to_s]
             if value.is_a?(Hash)
               relations << if reflection.polymorphic?
