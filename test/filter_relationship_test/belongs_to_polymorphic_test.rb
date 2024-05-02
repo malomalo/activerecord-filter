@@ -16,6 +16,12 @@ class BelongsToPolymorphicFilterTest < ActiveSupport::TestCase
     create_table "properties" do |t|
       t.string   "name",                    limit: 255
       t.integer  "account_id"
+      t.integer  "region_id"
+      t.string   "region_type"
+    end
+    
+    create_table "countries" do |t|
+      t.string  "name",                    limit: 255
     end
   end
 
@@ -31,6 +37,11 @@ class BelongsToPolymorphicFilterTest < ActiveSupport::TestCase
 
   class Property < ActiveRecord::Base
     belongs_to :account
+    belongs_to :region, polymorphic: true
+  end
+  
+  class Country < ActiveRecord::Base
+    has_many :properties
   end
 
   test "::filter :belongs_to => {ID: VALUE}" do
@@ -74,6 +85,28 @@ class BelongsToPolymorphicFilterTest < ActiveSupport::TestCase
       WHERE accounts.name = 'Name'
     SQL
   end
+  
+  test '::filter nested polymorphic' do
+    query = View.filter({
+      subject: {
+        as: "BelongsToPolymorphicFilterTest::Property",
+        region: {
+          as: 'BelongsToPolymorphicFilterTest::Country',
+          name: 'USA'
+        }
+      }
+    })
+
+    assert_sql(<<-SQL, query)
+      SELECT views.* FROM views
+      LEFT OUTER JOIN properties
+        ON properties.id = views.subject_id
+      LEFT OUTER JOIN countries
+        ON countries.id = properties.region_id
+        AND properties.subject_type = 'BelongsToPolymorphicFilterTest::Country'
+      WHERE properties.name = 'USA'
+    SQL
+  end
 
   test '::filter beyond polymorphic boundary with the same table twice' do
     query = View.filter({
@@ -83,7 +116,7 @@ class BelongsToPolymorphicFilterTest < ActiveSupport::TestCase
         other_friend: {name: 'Name2'}
       }
     })
-    
+
     assert_sql(<<-SQL, query)
       SELECT views.* FROM views
       LEFT OUTER JOIN accounts
