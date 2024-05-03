@@ -101,10 +101,11 @@ class BelongsToPolymorphicFilterTest < ActiveSupport::TestCase
       SELECT views.* FROM views
       LEFT OUTER JOIN properties
         ON properties.id = views.subject_id
+        AND views.subject_type = 'BelongsToPolymorphicFilterTest::Property'
       LEFT OUTER JOIN countries
         ON countries.id = properties.region_id
-        AND properties.subject_type = 'BelongsToPolymorphicFilterTest::Country'
-      WHERE properties.name = 'USA'
+        AND properties.region_type = 'BelongsToPolymorphicFilterTest::Country'
+      WHERE countries.name = 'USA'
     SQL
   end
 
