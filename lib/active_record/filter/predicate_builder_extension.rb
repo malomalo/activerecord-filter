@@ -245,7 +245,12 @@ module ActiveRecord::Filter::PredicateBuilderExtension
     when :not_in
       attribute.not_in(value)
     when :overlaps
-      attribute.overlaps(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
+      case column.type
+      in :geometry
+        Arel::Nodes::NamedFunction.new('ST_Overlaps', [ attribute, value ])
+      else
+        attribute.overlaps(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
+      end
     when :not_overlaps
       attribute.not_overlaps(value)
     when :ts_match
