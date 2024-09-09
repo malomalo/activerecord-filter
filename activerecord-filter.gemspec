@@ -18,7 +18,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_runtime_dependency 'activerecord', '>= 7.0.0'
-  spec.add_runtime_dependency 'arel-extensions', '>= 7.0.1'
+  spec.add_runtime_dependency 'arel-extensions', '>= 7.0.3'
 
   spec.add_development_dependency 'pg'
   spec.add_development_dependency 'actionpack', '>= 6.1.0'

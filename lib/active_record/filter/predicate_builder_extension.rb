@@ -231,7 +231,7 @@ module ActiveRecord::Filter::PredicateBuilderExtension
     when :in
       attribute.in(value)
     when :intersects
-      Arel::Nodes::NamedFunction.new('ST_Intersects', [attribute, geometry_from_value(value)])
+      attribute.intersects(value)
     when :less_than, :lt
       attribute.lt(value)
     when :less_than_or_equal_to, :lteq, :lte
@@ -247,7 +247,7 @@ module ActiveRecord::Filter::PredicateBuilderExtension
     when :overlaps
       case column.type
       in :geometry
-        Arel::Nodes::NamedFunction.new('ST_Overlaps', [ attribute, value ])
+        attribute.overlaps(value)
       else
         attribute.overlaps(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
       end
@@ -260,12 +260,7 @@ module ActiveRecord::Filter::PredicateBuilderExtension
         attribute.ts_query(value)
       end
     when :within
-      case column.type
-      when :geometry
-        Arel::Nodes::NamedFunction.new('ST_Within', [attribute, value])
-      else
-        attribute.within(Arel::Nodes.build_quoted(value))
-      end
+      attribute.within(Arel::Nodes.build_quoted(value))
     else
       raise "Not Supported: #{key.to_sym} on column \"#{column.name}\" of type #{column.type}"
     end

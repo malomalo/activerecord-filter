@@ -91,7 +91,7 @@ class GeometryColumnFilterTest < ActiveSupport::TestCase
     assert_sql(<<-SQL, query)
       SELECT properties.*
       FROM properties
-      WHERE ST_Overlaps(properties.geo, ST_SetSRID(ST_GeomFromText('POINT (28.182869232095754 11.073276002261096)'), 4326))
+      WHERE properties.geo && ST_SetSRID(ST_GeomFromText('POINT (28.182869232095754 11.073276002261096)'), 4326)
     SQL
   end
 
