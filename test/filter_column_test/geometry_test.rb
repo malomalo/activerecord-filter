@@ -30,7 +30,7 @@ class GeometryColumnFilterTest < ActiveSupport::TestCase
       WHERE properties.geo = ST_SetSRID(ST_GeomFromEWKB('\\x0101000000c04b9b84d02e3c400896a26e84252640'), 4326)
     SQL
   end
-  
+
   test "::filter :geometry_column => hex encoded EWKB" do
     query = Property.filter(geo: "0101000000c04b9b84d02e3c400896a26e84252640")
     assert_sql(<<-SQL, query)
@@ -67,7 +67,7 @@ class GeometryColumnFilterTest < ActiveSupport::TestCase
       )
     SQL
   end
-  
+
   test "::filter geometry_column: {contians: EWKT}" do
     query = Property.filter(geo: {contains: 'POINT (28.182869232095754 11.073276002261096)'})
     assert_sql(<<-SQL, query)
@@ -85,5 +85,14 @@ class GeometryColumnFilterTest < ActiveSupport::TestCase
       WHERE ST_Within(properties.geo, ST_SetSRID(ST_GeomFromText('POINT (28.182869232095754 11.073276002261096)'), 4326))
     SQL
   end
- 
+
+  test "::filter geometry_column: { overlaps: EWKT }" do
+    query = Property.filter(geo: { overlaps: 'POINT (28.182869232095754 11.073276002261096)' })
+    assert_sql(<<-SQL, query)
+      SELECT properties.*
+      FROM properties
+      WHERE properties.geo && ST_SetSRID(ST_GeomFromText('POINT (28.182869232095754 11.073276002261096)'), 4326)
+    SQL
+  end
+
 end
