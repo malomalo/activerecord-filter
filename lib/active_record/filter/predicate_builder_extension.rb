@@ -166,7 +166,7 @@ module ActiveRecord::Filter::PredicateBuilderExtension
         expand_filter_for_arel_attribute(column, attribute, subkey, subvalue)
       end
       nodes.inject { |c, n| c.nil? ? n : c.and(n) }
-    elsif value == nil
+    elsif value == nil || value == 'nil'
       attribute.eq(nil)
     elsif value == true || value == 'true'
       column.type == :boolean ? attribute.eq(true) : attribute.not_eq(nil)
