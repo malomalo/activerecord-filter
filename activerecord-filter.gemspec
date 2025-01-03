@@ -17,8 +17,8 @@ Gem::Specification.new do |spec|
   spec.test_files    = `git ls-files -- {test}/*`.split("\n")
   spec.require_paths = ["lib"]
 
-  spec.add_runtime_dependency 'activerecord', '>= 7.0.0'
-  spec.add_runtime_dependency 'arel-extensions', '>= 7.0.3'
+  spec.add_runtime_dependency 'activerecord', '>= 8.0.1'
+  spec.add_runtime_dependency 'arel-extensions', '>= 8.0.0'
 
   spec.add_development_dependency 'pg'
   spec.add_development_dependency 'actionpack', '>= 6.1.0'
@@ -30,8 +30,10 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "railties", '>= 6.1.0'
   spec.add_development_dependency "faker"
   spec.add_development_dependency "byebug"
-  spec.add_development_dependency "activerecord-postgis-adapter"
+
   # spec.add_development_dependency 'sdoc',                '~> 0.4'
   # spec.add_development_dependency 'sdoc-templates-42floors', '~> 0.3'
 
+  # Moved to Gemfile
+  # spec.add_development_dependency "activerecord-postgis-adapter"
 end
