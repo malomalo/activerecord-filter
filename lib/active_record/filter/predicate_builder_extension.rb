@@ -33,7 +33,7 @@ module ActiveRecord::Filter::PredicateBuilderExtension
                 relations << js
               end
             end
-           elsif reflection = klass._reflections[key]
+           elsif reflection = klass._reflections[key.to_sym]
             if value.is_a?(Hash)
               relations << if reflection.polymorphic?
                 value = value.dup
