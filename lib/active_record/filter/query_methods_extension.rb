@@ -49,7 +49,7 @@ private
     buckets[:named_join] = select_named_joins(joins, buckets[:stashed_join]) do |join|
       if join.is_a?(Arel::Nodes::Join)
         buckets[:join_node] << join
-      elsif join.is_a?(CTEJoin)
+      elsif join.is_a?(ActiveRecord::QueryMethods::CTEJoin)
         buckets[:join_node] << build_with_join_node(join.name)
       else
         raise "unknown class: %s" % join.class.name
