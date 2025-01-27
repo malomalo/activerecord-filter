@@ -99,6 +99,10 @@ jobs:
           cat ~/rails/Gemfile
           bundle update --jobs=3 --retry=3
 
+      - name: Fix Weird Test Cases
+        run: |
+          sed -i 's|} - \[:|} - \[:distinct_on, :uniq_on, :|' ~/rails/activerecord/test/cases/relation/delegation_test.rb
+
       - name: Fix AR Logger error
         if: ${{ matrix.rails == '7.0.8.7' }}
         run: |
@@ -140,6 +144,10 @@ jobs:
           sed -i "/# Active Record./a gem 'activerecord-filter', require: 'active_record/filter', path: File.expand_path\(ENV['GITHUB_WORKSPACE']\)" ~/rails/Gemfile
           cat ~/rails/Gemfile
           bundle update --jobs=3 --retry=3
+
+      - name: Fix Weird Test Cases
+        run: |
+          sed -i 's|} - \[:|} - \[:distinct_on, :uniq_on, :|' ~/rails/activerecord/test/cases/relation/delegation_test.rb
 
       - name: Fix AR Logger error
         if: ${{ matrix.rails == '7.0.8.7' }}
@@ -190,6 +198,10 @@ jobs:
           sed -i "/# Active Record./a gem 'activerecord-filter', require: 'active_record/filter', path: File.expand_path\(ENV['GITHUB_WORKSPACE']\)" ~/rails/Gemfile
           cat ~/rails/Gemfile
           bundle update --jobs=3 --retry=3
+
+      - name: Fix Weird Test Cases
+        run: |
+          sed -i 's|} - \[:|} - \[:distinct_on, :uniq_on, :|' ~/rails/activerecord/test/cases/relation/delegation_test.rb
 
       - name: Fix AR Logger error
         if: ${{ matrix.rails == '7.0.8.7' }}
