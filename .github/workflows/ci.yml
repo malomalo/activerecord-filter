@@ -87,7 +87,7 @@ jobs:
     
       - name: Download Rails
         run: |
-          git clone --branch ${{ matrix.rails }} https://github.com/rails/rails.git ~/rails
+          git clone --branch v${{ matrix.rails }} https://github.com/rails/rails.git ~/rails
           pushd ~/rails
           cat /home/runner/work/_temp/*.sh
           sed -i "s/Gem.ruby, '-w'/Gem.ruby, '-w0'/" ~/rails/activerecord/Rakefile
@@ -123,7 +123,7 @@ jobs:
     
       - name: Download Rails
         run: |
-          git clone --branch ${{ matrix.rails }} https://github.com/rails/rails.git ~/rails
+          git clone --branch v${{ matrix.rails }} https://github.com/rails/rails.git ~/rails
           pushd ~/rails
           cat /home/runner/work/_temp/*.sh
           sed -i "s/Gem.ruby, '-w'/Gem.ruby, '-w0'/" ~/rails/activerecord/Rakefile
@@ -167,7 +167,7 @@ jobs:
 
       - name: Download Rails
         run: |
-          git clone --branch ${{ matrix.rails }} https://github.com/rails/rails.git ~/rails
+          git clone --branch v${{ matrix.rails }} https://github.com/rails/rails.git ~/rails
           pushd ~/rails
           cat /home/runner/work/_temp/*.sh
           sed -i "s/Gem.ruby, '-w'/Gem.ruby, '-w0'/" ~/rails/activerecord/Rakefile
