@@ -12,7 +12,7 @@ require 'minitest/unit'
 require 'minitest/reporters'
 require 'active_record/filter'
 require 'faker'
-require 'postgis_adapter'
+require 'activerecord-postgis-adapter'
 
 # Setup the test db
 ActiveSupport.test_order = :random
