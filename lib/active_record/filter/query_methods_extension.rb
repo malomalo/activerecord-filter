@@ -30,7 +30,7 @@ private
 
     joins = joins_values.dup
     if joins.last.is_a?(ActiveRecord::Associations::JoinDependency)
-      stashed_eager_load = joins.pop if joins.last.base_klass == klass
+      stashed_eager_load = joins.pop if joins.last.base_klass == model
     end
 
     joins.each_with_index do |join, i|
