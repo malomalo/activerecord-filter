@@ -59,13 +59,9 @@ jobs:
 
     strategy:
       matrix:
-        rails: ['7.1.5.1', '7.2.2.1', '8.0.1']
+        rails: ['7.0.8.7', '7.1.5.1', '7.2.2.1', '8.0.1']
         ruby-version: ['3.3']
         postgres-version: ['17']
-        include:
-          - rails: '7.0.8.7'
-            ruby-version: '3.1'
-            postgres-version: '17'
 
     steps:
       - name: Install Postgresql
@@ -102,6 +98,11 @@ jobs:
           cat ~/rails/Gemfile
           bundle update --jobs=3 --retry=3
 
+      - name: Fix AR Logger error
+        if: ${{ matrix.rails == '7.0.8.7' }}
+        run: |
+          sed -i "/require 'support\/connection'/a require 'logger'" ~/rails/activerecord/test/cases/helper.rb
+
       - run: |
           pushd ~/rails/activerecord
           bundle exec rake db:postgresql:rebuild postgresql:test
@@ -114,11 +115,8 @@ jobs:
 
     strategy:
       matrix:
-        rails: ['7.1.5.1', '7.2.2.1', '8.0.1']
+        rails: ['7.0.8.7', '7.1.5.1', '7.2.2.1', '8.0.1']
         ruby-version: ['3.3']
-        include:
-          - rails: '7.0.8.7'
-            ruby-version: '3.1'
 
     steps:
       - uses: actions/checkout@v4
@@ -141,6 +139,11 @@ jobs:
           cat ~/rails/Gemfile
           bundle update --jobs=3 --retry=3
 
+      - name: Fix AR Logger error
+        if: ${{ matrix.rails == '7.0.8.7' }}
+        run: |
+          sed -i "/require 'support\/connection'/a require 'logger'" ~/rails/activerecord/test/cases/helper.rb
+
       - run: |
           pushd ~/rails/activerecord
           bundle exec rake sqlite3:test
@@ -155,11 +158,8 @@ jobs:
 
     strategy:
       matrix:
-        rails: ['7.1.5.1', '7.2.2.1', '8.0.1']
+        rails: ['7.0.8.7', '7.1.5.1', '7.2.2.1', '8.0.1']
         ruby-version: ['3.3']
-        include:
-          - rails: '7.0.8.7'
-            ruby-version: '3.1'
 
     steps:
       - name: Install MySQL
@@ -187,6 +187,11 @@ jobs:
           sed -i "/# Active Record./a gem 'activerecord-filter', require: 'active_record/filter', path: File.expand_path\(ENV['GITHUB_WORKSPACE']\)" ~/rails/Gemfile
           cat ~/rails/Gemfile
           bundle update --jobs=3 --retry=3
+
+      - name: Fix AR Logger error
+        if: ${{ matrix.rails == '7.0.8.7' }}
+        run: |
+          sed -i "/require 'support\/connection'/a require 'logger'" ~/rails/activerecord/test/cases/helper.rb
 
       - run: |
           pushd ~/rails/activerecord
