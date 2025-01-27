@@ -92,7 +92,7 @@ jobs:
           cat /home/runner/work/_temp/*.sh
           sed -i "s/Gem.ruby, '-w'/Gem.ruby, '-w0'/" ~/rails/activerecord/Rakefile
           sed -i "s/t.warning = true/t.warning = false/g" ~/rails/activerecord/Rakefile
-          sed -i "/require 'support\/connection'/a \$LOAD_PATH.unshift\(File.expand_path\(ENV['GITHUB_WORKSPACE']\)\)\nrequire 'active_record/filter'" ~/rails/activerecord/test/cases/helper.rb
+          sed -i "/require \"active_record\"/a \$LOAD_PATH.unshift\(File.expand_path\(ENV['GITHUB_WORKSPACE']\)\)\nrequire 'active_record/filter'" ~/rails/activerecord/test/cases/helper.rb
           rm ~/rails/Gemfile.lock
           sed -i "/# Active Record./a gem 'activerecord-filter', require: 'active_record/filter', path: File.expand_path\(ENV['GITHUB_WORKSPACE']\)" ~/rails/Gemfile
           cat ~/rails/Gemfile
@@ -101,7 +101,7 @@ jobs:
       - name: Fix AR Logger error
         if: ${{ matrix.rails == '7.0.8.7' }}
         run: |
-          sed -i "/require 'support\/connection'/a require 'logger'" ~/rails/activerecord/test/cases/helper.rb
+          sed -i "/require \"fiber\"/a require 'logger'" ~/rails/activesupport/lib/active_support/logger_thread_safe_level.rb
 
       - run: |
           pushd ~/rails/activerecord
@@ -133,7 +133,7 @@ jobs:
           cat /home/runner/work/_temp/*.sh
           sed -i "s/Gem.ruby, '-w'/Gem.ruby, '-w0'/" ~/rails/activerecord/Rakefile
           sed -i "s/t.warning = true/t.warning = false/g" ~/rails/activerecord/Rakefile
-          sed -i "/require 'support\/connection'/a \$LOAD_PATH.unshift\(File.expand_path\(ENV['GITHUB_WORKSPACE']\)\)\nrequire 'active_record/filter'" ~/rails/activerecord/test/cases/helper.rb
+          sed -i "/require \"active_record\"/a \$LOAD_PATH.unshift\(File.expand_path\(ENV['GITHUB_WORKSPACE']\)\)\nrequire 'active_record/filter'" ~/rails/activerecord/test/cases/helper.rb
           rm ~/rails/Gemfile.lock
           sed -i "/# Active Record./a gem 'activerecord-filter', require: 'active_record/filter', path: File.expand_path\(ENV['GITHUB_WORKSPACE']\)" ~/rails/Gemfile
           cat ~/rails/Gemfile
@@ -142,7 +142,7 @@ jobs:
       - name: Fix AR Logger error
         if: ${{ matrix.rails == '7.0.8.7' }}
         run: |
-          sed -i "/require 'support\/connection'/a require 'logger'" ~/rails/activerecord/test/cases/helper.rb
+          sed -i "/require \"fiber\"/a require 'logger'" ~/rails/activesupport/lib/active_support/logger_thread_safe_level.rb
 
       - run: |
           pushd ~/rails/activerecord
@@ -182,7 +182,7 @@ jobs:
           cat /home/runner/work/_temp/*.sh
           sed -i "s/Gem.ruby, '-w'/Gem.ruby, '-w0'/" ~/rails/activerecord/Rakefile
           sed -i "s/t.warning = true/t.warning = false/g" ~/rails/activerecord/Rakefile
-          sed -i "/require 'support\/connection'/a \$LOAD_PATH.unshift\(File.expand_path\(ENV['GITHUB_WORKSPACE']\)\)\nrequire 'active_record/filter'" ~/rails/activerecord/test/cases/helper.rb
+          sed -i "/require \"active_record\"/a \$LOAD_PATH.unshift\(File.expand_path\(ENV['GITHUB_WORKSPACE']\)\)\nrequire 'active_record/filter'" ~/rails/activerecord/test/cases/helper.rb
           rm ~/rails/Gemfile.lock
           sed -i "/# Active Record./a gem 'activerecord-filter', require: 'active_record/filter', path: File.expand_path\(ENV['GITHUB_WORKSPACE']\)" ~/rails/Gemfile
           cat ~/rails/Gemfile
@@ -191,7 +191,7 @@ jobs:
       - name: Fix AR Logger error
         if: ${{ matrix.rails == '7.0.8.7' }}
         run: |
-          sed -i "/require 'support\/connection'/a require 'logger'" ~/rails/activerecord/test/cases/helper.rb
+          sed -i "/require \"fiber\"/a require 'logger'" ~/rails/activesupport/lib/active_support/logger_thread_safe_level.rb
 
       - run: |
           pushd ~/rails/activerecord
