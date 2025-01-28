@@ -94,5 +94,18 @@ class FilterTest < ActiveSupport::TestCase
       WHERE properties.id = 2
     SQL
   end
+  
+  test '::filter on relationship' do
+    queries = [
+      Property.filter("photos" => { "id" => [ 1, 2 ] }),
+      Property.filter(photos: { id: [ 1, 2 ]})
+    ].map { |q| q.to_sql.strip.gsub('"', '') }
+
+    queries.each do |query|
+      assert_equal <<~SQL.strip, query
+        SELECT properties.* FROM properties LEFT OUTER JOIN photos ON photos.property_id = properties.id WHERE photos.id IN (1, 2)
+      SQL
+    end
+  end
 
 end

@@ -33,7 +33,7 @@ module ActiveRecord::Filter::PredicateBuilderExtension
                 relations << js
               end
             end
-          elsif reflection = klass._reflections[key.to_s]
+           elsif reflection = klass._reflections[key.to_sym]
             if value.is_a?(Hash)
               relations << if reflection.polymorphic?
                 value = value.dup
@@ -65,11 +65,11 @@ module ActiveRecord::Filter::PredicateBuilderExtension
             elsif value != true && value != false && value != 'true' && value != 'false' && !value.nil?
               relations << key
             end
-          elsif !klass.columns_hash.has_key?(key.to_s) && key.to_s.end_with?('_ids') && reflection = klass._reflections[key.to_s.gsub(/_ids$/, 's')]
+          elsif !klass.columns_hash.has_key?(key.to_s) && key.to_s.end_with?('_ids') && reflection = klass._reflections[key.to_s.gsub(/_ids$/, 's').to_sym]
             relations << reflection.name
           elsif reflection = klass.reflect_on_all_associations(:has_and_belongs_to_many).find {|r| r.join_table == key.to_s && value.keys.first.to_s == r.association_foreign_key.to_s }
-            reflection = klass._reflections[klass._reflections[reflection.name.to_s].send(:delegate_reflection).options[:through].to_s]
-            relations << {reflection.name => build_filter_joins(reflection.klass, value)}
+            reflection = klass._reflections[klass._reflections[reflection.name].send(:delegate_reflection).options[:through]]
+            relations << { reflection.name => build_filter_joins(reflection.klass, value) }
           else
             {key => value}
           end
@@ -314,9 +314,8 @@ module ActiveRecord::Filter::PredicateBuilderExtension
 
   end
 
-
   def expand_filter_for_join_table(relation, value, relation_trail, alias_tracker)
-    relation = relation.active_record._reflections[relation.active_record._reflections[relation.name.to_s].send(:delegate_reflection).options[:through].to_s]
+    relation = relation.active_record._reflections[relation.active_record._reflections[relation.name].send(:delegate_reflection).options[:through]]
     builder = self.class.new(ActiveRecord::TableMetadata.new(
       relation.klass,
       alias_tracker.aliased_table_for_relation(relation_trail + [relation.name], relation.klass.arel_table) { relation.alias_candidate(table.arel_table.name || relation.klass.arel_table) },

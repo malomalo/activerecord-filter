@@ -12,9 +12,12 @@ jobs:
 
     strategy:
       matrix:
-        rails: ['7.0.8', '7.1.3']
-        ruby-version: ['3.0', '3.1', '3.2']
-        postgres-version: ['15']
+        rails: ['7.1.5.1', '7.2.2.1', '8.0.1']
+        ruby-version: ['3.2', '3.3', '3.4']
+        postgres-version: ['17']
+        exclude:
+          - rails: '8.0.1'
+            ruby-version: '3.1'
 
     steps:
       - name: Install Postgresql
@@ -32,6 +35,11 @@ jobs:
           sudo -u postgres psql -c "ALTER USER runner WITH PASSWORD 'runner';"
 
       - uses: actions/checkout@v4
+
+      - name: Fix activerecord-postgis-adapter
+        if: ${{ matrix.rails == '8.0.1' }}
+        run: |
+          echo "gem 'activerecord-postgis-adapter', github: 'rgeo/activerecord-postgis-adapter', branch: 'rails8'" >> Gemfile
 
       - uses: ruby/setup-ruby@v1
         with:
@@ -50,10 +58,11 @@ jobs:
     runs-on: ubuntu-22.04
 
     strategy:
+      fail-fast: false
       matrix:
-        rails: ['v7.0.8', 'v7.1.3']
-        ruby-version: ['3.2']
-        postgres-version: ['15']
+        rails: ['7.1.5.1', '7.2.2.1', '8.0.1']
+        ruby-version: ['3.3']
+        postgres-version: ['17']
 
     steps:
       - name: Install Postgresql
@@ -75,20 +84,29 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby-version }}
-          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+          bundler-cache: false # runs 'bundle install' and caches installed gems automatically
     
       - name: Download Rails
         run: |
-          git clone --branch ${{ matrix.rails }} https://github.com/rails/rails.git ~/rails
+          git clone --branch v${{ matrix.rails }} https://github.com/rails/rails.git ~/rails
           pushd ~/rails
           cat /home/runner/work/_temp/*.sh
           sed -i "s/Gem.ruby, '-w'/Gem.ruby, '-w0'/" ~/rails/activerecord/Rakefile
           sed -i "s/t.warning = true/t.warning = false/g" ~/rails/activerecord/Rakefile
-          sed -i "/require 'support\/connection'/a \$LOAD_PATH.unshift\(File.expand_path\(ENV['GITHUB_WORKSPACE']\)\)\nrequire 'active_record/filter'" ~/rails/activerecord/test/cases/helper.rb
+          sed -i "/require \"active_record\"/a \$LOAD_PATH.unshift\(File.expand_path\(ENV['GITHUB_WORKSPACE']\)\)\nrequire 'active_record/filter'" ~/rails/activerecord/test/cases/helper.rb
           rm ~/rails/Gemfile.lock
           sed -i "/# Active Record./a gem 'activerecord-filter', require: 'active_record/filter', path: File.expand_path\(ENV['GITHUB_WORKSPACE']\)" ~/rails/Gemfile
           cat ~/rails/Gemfile
           bundle update --jobs=3 --retry=3
+
+      - name: Fix Weird Test Cases
+        run: |
+          sed -i 's|} - \[:|} - \[:distinct_on, :uniq_on, :|' ~/rails/activerecord/test/cases/relation/delegation_test.rb
+
+      - name: Fix AR Logger error
+        if: ${{ matrix.rails == '7.0.8.7' }}
+        run: |
+          sed -i "/require \"fiber\"/a require 'logger'" ~/rails/activesupport/lib/active_support/logger_thread_safe_level.rb
 
       - run: |
           pushd ~/rails/activerecord
@@ -101,9 +119,10 @@ jobs:
 
 
     strategy:
+      fail-fast: false
       matrix:
-        rails: ['v7.0.8', 'v7.1.3']
-        ruby-version: ['3.2']
+        rails: ['7.1.5.1', '7.2.2.1', '8.0.1']
+        ruby-version: ['3.3']
 
     steps:
       - uses: actions/checkout@v4
@@ -111,20 +130,29 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby-version }}
-          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+          bundler-cache: false # runs 'bundle install' and caches installed gems automatically
     
       - name: Download Rails
         run: |
-          git clone --branch ${{ matrix.rails }} https://github.com/rails/rails.git ~/rails
+          git clone --branch v${{ matrix.rails }} https://github.com/rails/rails.git ~/rails
           pushd ~/rails
           cat /home/runner/work/_temp/*.sh
           sed -i "s/Gem.ruby, '-w'/Gem.ruby, '-w0'/" ~/rails/activerecord/Rakefile
           sed -i "s/t.warning = true/t.warning = false/g" ~/rails/activerecord/Rakefile
-          sed -i "/require 'support\/connection'/a \$LOAD_PATH.unshift\(File.expand_path\(ENV['GITHUB_WORKSPACE']\)\)\nrequire 'active_record/filter'" ~/rails/activerecord/test/cases/helper.rb
+          sed -i "/require \"active_record\"/a \$LOAD_PATH.unshift\(File.expand_path\(ENV['GITHUB_WORKSPACE']\)\)\nrequire 'active_record/filter'" ~/rails/activerecord/test/cases/helper.rb
           rm ~/rails/Gemfile.lock
           sed -i "/# Active Record./a gem 'activerecord-filter', require: 'active_record/filter', path: File.expand_path\(ENV['GITHUB_WORKSPACE']\)" ~/rails/Gemfile
           cat ~/rails/Gemfile
           bundle update --jobs=3 --retry=3
+
+      - name: Fix Weird Test Cases
+        run: |
+          sed -i 's|} - \[:|} - \[:distinct_on, :uniq_on, :|' ~/rails/activerecord/test/cases/relation/delegation_test.rb
+
+      - name: Fix AR Logger error
+        if: ${{ matrix.rails == '7.0.8.7' }}
+        run: |
+          sed -i "/require \"fiber\"/a require 'logger'" ~/rails/activesupport/lib/active_support/logger_thread_safe_level.rb
 
       - run: |
           pushd ~/rails/activerecord
@@ -139,9 +167,10 @@ jobs:
     runs-on: ubuntu-22.04
 
     strategy:
+      fail-fast: false
       matrix:
-        rails: ['v7.0.8', 'v7.1.3']
-        ruby-version: ['3.2']
+        rails: ['7.1.5.1', '7.2.2.1', '8.0.1']
+        ruby-version: ['3.3']
 
     steps:
       - name: Install MySQL
@@ -155,20 +184,29 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby-version }}
-          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+          bundler-cache: false # runs 'bundle install' and caches installed gems automatically
 
       - name: Download Rails
         run: |
-          git clone --branch ${{ matrix.rails }} https://github.com/rails/rails.git ~/rails
+          git clone --branch v${{ matrix.rails }} https://github.com/rails/rails.git ~/rails
           pushd ~/rails
           cat /home/runner/work/_temp/*.sh
           sed -i "s/Gem.ruby, '-w'/Gem.ruby, '-w0'/" ~/rails/activerecord/Rakefile
           sed -i "s/t.warning = true/t.warning = false/g" ~/rails/activerecord/Rakefile
-          sed -i "/require 'support\/connection'/a \$LOAD_PATH.unshift\(File.expand_path\(ENV['GITHUB_WORKSPACE']\)\)\nrequire 'active_record/filter'" ~/rails/activerecord/test/cases/helper.rb
+          sed -i "/require \"active_record\"/a \$LOAD_PATH.unshift\(File.expand_path\(ENV['GITHUB_WORKSPACE']\)\)\nrequire 'active_record/filter'" ~/rails/activerecord/test/cases/helper.rb
           rm ~/rails/Gemfile.lock
           sed -i "/# Active Record./a gem 'activerecord-filter', require: 'active_record/filter', path: File.expand_path\(ENV['GITHUB_WORKSPACE']\)" ~/rails/Gemfile
           cat ~/rails/Gemfile
           bundle update --jobs=3 --retry=3
+
+      - name: Fix Weird Test Cases
+        run: |
+          sed -i 's|} - \[:|} - \[:distinct_on, :uniq_on, :|' ~/rails/activerecord/test/cases/relation/delegation_test.rb
+
+      - name: Fix AR Logger error
+        if: ${{ matrix.rails == '7.0.8.7' }}
+        run: |
+          sed -i "/require \"fiber\"/a require 'logger'" ~/rails/activesupport/lib/active_support/logger_thread_safe_level.rb
 
       - run: |
           pushd ~/rails/activerecord
