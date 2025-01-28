@@ -1,6 +1,6 @@
 module ActiveRecord::Filter::RelationExtension
 
-  def initialize(model, table: nil, predicate_builder: nil, values: {})
+  def initialize(*, **)
     @filters = []
     super
   end
