@@ -314,7 +314,6 @@ module ActiveRecord::Filter::PredicateBuilderExtension
 
   end
 
-
   def expand_filter_for_join_table(relation, value, relation_trail, alias_tracker)
     relation = relation.active_record._reflections[relation.active_record._reflections[relation.name].send(:delegate_reflection).options[:through]]
     builder = self.class.new(ActiveRecord::TableMetadata.new(
