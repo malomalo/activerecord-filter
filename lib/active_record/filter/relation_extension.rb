@@ -49,13 +49,22 @@ module ActiveRecord::Filter::RelationExtension
     @filter_clause_factory ||= ActiveRecord::Filter::FilterClauseFactory.new(klass, predicate_builder)
   end
 
-  def build_arel(connection, aliases = nil)
-    arel = super
-    my_alias_tracker = ActiveRecord::Associations::AliasTracker.create(model.connection_pool, table.name, [])
-    build_filters(arel, my_alias_tracker)
-    arel
+  if ActiveRecord.version >= "7.2"
+    def build_arel(connection, aliases = nil)
+      arel = super
+      my_alias_tracker = ActiveRecord::Associations::AliasTracker.create(model.connection_pool, table.name, [])
+      build_filters(arel, my_alias_tracker)
+      arel
+    end
+  else
+    def build_arel(aliases = nil)
+      arel = super
+      my_alias_tracker = ActiveRecord::Associations::AliasTracker.create(connection, table.name, [])
+      build_filters(arel, my_alias_tracker)
+      arel
+    end
   end
-
+  
   def build_filters(manager, alias_tracker)
     @filters.each do |filters|
       manager.where(filter_clause_factory.build(filters, alias_tracker).ast)
