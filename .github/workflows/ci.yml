@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        rails: ['7.0.8.7', '7.1.5.1', '7.2.2.1', '8.0.1']
+        rails: ['7.1.5.1', '7.2.2.1', '8.0.1']
         ruby-version: ['3.2', '3.3', '3.4']
         postgres-version: ['17']
         exclude:
@@ -60,7 +60,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rails: ['7.0.8.7', '7.1.5.1', '7.2.2.1', '8.0.1']
+        rails: ['7.1.5.1', '7.2.2.1', '8.0.1']
         ruby-version: ['3.3']
         postgres-version: ['17']
 
@@ -121,7 +121,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rails: ['7.0.8.7', '7.1.5.1', '7.2.2.1', '8.0.1']
+        rails: ['7.1.5.1', '7.2.2.1', '8.0.1']
         ruby-version: ['3.3']
 
     steps:
@@ -169,7 +169,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rails: ['7.0.8.7', '7.1.5.1', '7.2.2.1', '8.0.1']
+        rails: ['7.1.5.1', '7.2.2.1', '8.0.1']
         ruby-version: ['3.3']
 
     steps:
