@@ -7,7 +7,7 @@ on:
 
 jobs:
   sunstone:
-    name: ActiveRecord::Filter Test
+    name: ActiveRecord::Filter Sunstone Test
     runs-on: ubuntu-22.04
 
     strategy:
@@ -15,9 +15,6 @@ jobs:
         rails: ['7.1.5.1', '7.2.2.1', '8.0.1']
         ruby-version: ['3.2', '3.3', '3.4']
         postgres-version: ['17']
-        exclude:
-          - rails: '8.0.1'
-            ruby-version: '3.1'
 
     steps:
       - name: Install Postgresql
@@ -48,6 +45,7 @@ jobs:
 
       - run: |
           sed -i -e "s/gem.add_dependency 'activerecord', '>= [[:digit:]]\+.[[:digit:]]\+.[[:digit:]]\+'/gem.add_dependency 'activerecord', '${{ matrix.rails }}'/" activerecord-filter.gemspec 
+          cat activerecord-filter.gemspec
           rm Gemfile.lock
           bundle
 
