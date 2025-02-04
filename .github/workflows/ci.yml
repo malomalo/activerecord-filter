@@ -36,7 +36,7 @@ jobs:
       - name: Fix activerecord-postgis-adapter
         if: ${{ matrix.rails == '8.0.1' }}
         run: |
-          echo "gem 'activerecord-postgis-adapter', github: 'rgeo/activerecord-postgis-adapter', branch: 'rails8'" >> Gemfile
+          echo "gem 'activerecord-postgis-adapter', github: 'rgeo/activerecord-postgis-adapter'" >> Gemfile
 
       - uses: ruby/setup-ruby@v1
         with:
