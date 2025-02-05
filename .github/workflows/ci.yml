@@ -44,7 +44,7 @@ jobs:
           bundler-cache: true # runs 'bundle install' and caches installed gems automatically
 
       - run: |
-          sed -i -e "s/gem.add_runtime_dependency 'activerecord', '>= [[:digit:]]\+.[[:digit:]]\+.[[:digit:]]\+'/gem.add_runtime_dependency 'activerecord', '${{ matrix.rails }}'/" activerecord-filter.gemspec
+          sed -i -e "s/spec.add_runtime_dependency  *'activerecord',  *'>= [[:digit:]]\+\(\.[[:digit:]]\+\)*'/gem.add_runtime_dependency 'activerecord', '${{ matrix.rails }}'/" activerecord-filter.gemspec
           cat activerecord-filter.gemspec
           rm Gemfile.lock
           bundle
