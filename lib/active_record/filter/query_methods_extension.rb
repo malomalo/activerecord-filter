@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module ActiveRecord::Filter::QueryMethodsExtension
 private
   def build_join_buckets

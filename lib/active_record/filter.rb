@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'active_record'
 require 'arel/extensions'
 require 'active_record/filter/unkown_filter_error'

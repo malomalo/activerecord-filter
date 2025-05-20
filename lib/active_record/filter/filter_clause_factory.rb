@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class ActiveRecord::Filter::FilterClauseFactory
 
   def initialize(model, predicate_builder)
