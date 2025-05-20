@@ -24,8 +24,9 @@ class FilterTest < ActiveSupport::TestCase
   class Photo < ActiveRecord::Base
     belongs_to :property
   end
-
+  
   test 'Aliasing a table name' do
+    skip if ActiveRecord.version <= '7.3' # Bug in <= 7.2
     table_alias = Property.arel_table.alias("x")
     arel = ActiveRecord::Relation.create(Property, table: table_alias)
 
