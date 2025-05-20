@@ -1,7 +1,7 @@
 class ActiveRecord::Filter::FilterClauseFactory
 
-  def initialize(klass, predicate_builder)
-    @klass = klass
+  def initialize(model, predicate_builder)
+    @model = model
     @predicate_builder = predicate_builder
   end
 
@@ -17,6 +17,6 @@ class ActiveRecord::Filter::FilterClauseFactory
 
   protected
 
-  attr_reader :klass, :predicate_builder
+  attr_reader :model, :predicate_builder
 
 end

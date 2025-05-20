@@ -101,11 +101,6 @@ jobs:
         run: |
           sed -i 's|} - \[:|} - \[:distinct_on, :uniq_on, :|' ~/rails/activerecord/test/cases/relation/delegation_test.rb
 
-      - name: Fix AR Logger error
-        if: ${{ matrix.rails == '7.0.8.7' }}
-        run: |
-          sed -i "/require \"fiber\"/a require 'logger'" ~/rails/activesupport/lib/active_support/logger_thread_safe_level.rb
-
       - run: |
           pushd ~/rails/activerecord
           bundle exec rake db:postgresql:rebuild postgresql:test
@@ -146,11 +141,6 @@ jobs:
       - name: Fix Weird Test Cases
         run: |
           sed -i 's|} - \[:|} - \[:distinct_on, :uniq_on, :|' ~/rails/activerecord/test/cases/relation/delegation_test.rb
-
-      - name: Fix AR Logger error
-        if: ${{ matrix.rails == '7.0.8.7' }}
-        run: |
-          sed -i "/require \"fiber\"/a require 'logger'" ~/rails/activesupport/lib/active_support/logger_thread_safe_level.rb
 
       - run: |
           pushd ~/rails/activerecord
@@ -200,11 +190,6 @@ jobs:
       - name: Fix Weird Test Cases
         run: |
           sed -i 's|} - \[:|} - \[:distinct_on, :uniq_on, :|' ~/rails/activerecord/test/cases/relation/delegation_test.rb
-
-      - name: Fix AR Logger error
-        if: ${{ matrix.rails == '7.0.8.7' }}
-        run: |
-          sed -i "/require \"fiber\"/a require 'logger'" ~/rails/activesupport/lib/active_support/logger_thread_safe_level.rb
 
       - run: |
           pushd ~/rails/activerecord

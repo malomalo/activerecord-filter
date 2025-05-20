@@ -25,6 +25,17 @@ class FilterTest < ActiveSupport::TestCase
     belongs_to :property
   end
 
+  test 'Aliasing a table name' do
+    table_alias = Property.arel_table.alias("x")
+    arel = ActiveRecord::Relation.create(Property, table: table_alias)
+
+    assert_equal <<-SQL.strip.tr("\n", '').squeeze(" "), arel.joins(:photos).where!(name: 'name').to_sql
+      SELECT "x".*
+      FROM "properties" "x"
+      INNER JOIN "photos" ON "photos"."property_id" = "x"."id"
+      WHERE "x"."name" = 'name'
+    SQL
+  end
   
   test '::filter nil' do
     query = Property.filter(nil)
