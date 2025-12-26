@@ -70,7 +70,7 @@ class HABTMTest < ActiveSupport::TestCase
   # end
 
   test '::filter :habtm_with_with_self => FILTER' do
-    query = Region.filter(properties: {name: 'Property'})
+    query = HABTMTest::Region.filter(properties: {name: 'Property'})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT regions.* FROM regions
       LEFT OUTER JOIN properties_regions ON properties_regions.region_id = regions.id
@@ -80,14 +80,14 @@ class HABTMTest < ActiveSupport::TestCase
   end
 
   test '::filter :habtm_with_with_self => FILTER ON JOIN TABLE' do
-    query = Region.filter(regions_regions: {parent_id: 42})
+    query = HABTMTest::Region.filter(regions_regions: {parent_id: 42})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT regions.* FROM regions
       LEFT OUTER JOIN regions_regions ON regions_regions.child_id = regions.id
       WHERE regions_regions.parent_id = 42
     SQL
 
-    query = Region.filter(regions_regions: {child_id: 42})
+    query = HABTMTest::Region.filter(regions_regions: {child_id: 42})
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT regions.* FROM regions
       LEFT OUTER JOIN regions_regions ON regions_regions.parent_id = regions.id
@@ -96,7 +96,7 @@ class HABTMTest < ActiveSupport::TestCase
   end
 
   test '::filter :habtm_with_with_self => FILTER ON TABLE AND JOIN TABLE' do
-    query = Region.filter(regions_regions: {parent_id: 42}, name: 'name')
+    query = HABTMTest::Region.filter(regions_regions: {parent_id: 42}, name: 'name')
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT regions.* FROM regions
       LEFT OUTER JOIN regions_regions ON regions_regions.child_id = regions.id
@@ -106,7 +106,7 @@ class HABTMTest < ActiveSupport::TestCase
   end
 
   test '::filter :habtm_with_with_self => FILTER ON JOIN TABLE RELATION' do
-    query = Region.filter(parents: { id: 42 })
+    query = HABTMTest::Region.filter(parents: { id: 42 })
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
       SELECT regions.* FROM regions
       LEFT OUTER JOIN regions_regions ON regions_regions.child_id = regions.id

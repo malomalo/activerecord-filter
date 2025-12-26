@@ -299,18 +299,18 @@ module ActiveRecord::Filter::PredicateBuilderExtension
       value = value.dup
       klass = value.delete(:as).safe_constantize
 
-      builder = self.class.new(ActiveRecord::TableMetadata.new(
+      builder = new_predicate_builder_extension(
         klass,          
         alias_tracker.aliased_table_for_relation(relation_trail + ["#{klass.table_name}_as_#{relation.name}"], klass.arel_table) { klass.arel_table.name },
         relation
-      ))
+      )
       builder.build_from_filter_hash(value, relation_trail + ["#{klass.table_name}_as_#{relation.name}"], alias_tracker)
     else
-      builder = self.class.new(ActiveRecord::TableMetadata.new(
+      builder = new_predicate_builder_extension(
         relation.klass,
         alias_tracker.aliased_table_for_relation(relation_trail + [relation.name], relation.klass.arel_table) { relation.alias_candidate(table.arel_table.name || relation.klass.arel_table) },
         relation
-      ))
+      )
       builder.build_from_filter_hash(value, relation_trail + [relation.name], alias_tracker)
     end
 
@@ -318,12 +318,21 @@ module ActiveRecord::Filter::PredicateBuilderExtension
 
   def expand_filter_for_join_table(relation, value, relation_trail, alias_tracker)
     relation = relation.active_record._reflections[relation.active_record._reflections[relation.name].send(:delegate_reflection).options[:through]]
-    builder = self.class.new(ActiveRecord::TableMetadata.new(
+    builder = new_predicate_builder_extension(
       relation.klass,
       alias_tracker.aliased_table_for_relation(relation_trail + [relation.name], relation.klass.arel_table) { relation.alias_candidate(table.arel_table.name || relation.klass.arel_table) },
       relation
-    ))
+    )
     builder.build_from_filter_hash(value, relation_trail + [relation.name], alias_tracker)
   end
 
+  if ActiveRecord.version >= "8.1"
+    def new_predicate_builder_extension(a,b,c)
+      self.class.new(ActiveRecord::TableMetadata.new(a, b))
+    end
+  else
+    def new_predicate_builder_extension(a,b,c)
+      self.class.new(ActiveRecord::TableMetadata.new(a, b, c))
+    end
+  end
 end

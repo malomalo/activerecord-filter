@@ -13,9 +13,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rails: ['7.2.2.1', '8.0.2']
-        ruby-version: ['3.2', '3.3', '3.4', '3.5.0-preview1']
-        postgres-version: ['17']
+        rails-version:
+          - 7.2.3
+          - 8.0
+          - 8.1
+        ruby-version:
+          - 3.3
+          - 3.4
+          - 4.0
+        postgres-version:
+          - 18
 
     steps:
       - name: Install Postgresql
@@ -35,7 +42,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Fix activerecord-postgis-adapter
-        if: ${{ matrix.rails == '8.0.1' }}
+        if: ${{ matrix.rails-version == '8.0.1' }}
         run: |
           echo "gem 'activerecord-postgis-adapter', github: 'rgeo/activerecord-postgis-adapter'" >> Gemfile
 
@@ -45,10 +52,11 @@ jobs:
           bundler-cache: true # runs 'bundle install' and caches installed gems automatically
 
       - run: |
-          sed -i -e "s/spec.add_runtime_dependency  *'activerecord',  *'>= [[:digit:]]\+\(\.[[:digit:]]\+\)*'/spec.add_runtime_dependency 'activerecord', '${{ matrix.rails }}'/" activerecord-filter.gemspec
+          sed -i -e "s/spec.add_runtime_dependency  *'activerecord',  *'>= [[:digit:]]\+\(\.[[:digit:]]\+\)*'/spec.add_runtime_dependency 'activerecord', '${{ matrix.rails-version }}'/" activerecord-filter.gemspec
           cat activerecord-filter.gemspec
           rm Gemfile.lock
-          bundle
+          bundle install --jobs=3 --retry=3
+          bundle update --jobs=3 --retry=3
 
       - run: bundle exec rake test
 
@@ -59,13 +67,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rails: ['7.1.5.1', '7.2.2.1', '8.0.2']
-        ruby-version: ['3.4']
-        postgres-version: ['17']
+        rails-version:
+          - 7.1.6
+          - 7.2.3
+          - 8.0.4
+          - 8.1.1
+        ruby-version:
+          - 3.4
+        postgres-version:
+          - 18
         exclude:
-          - rails: '7.1.5.1'
+          - rails-version: '7.1.6'
             ruby-version: '3.4'
-            postgres-version: '17'
+            postgres-version: '18'
 
     steps:
       - name: Install Postgresql
@@ -91,7 +105,7 @@ jobs:
     
       - name: Download Rails
         run: |
-          git clone --branch v${{ matrix.rails }} https://github.com/rails/rails.git ~/rails
+          git clone --branch v${{ matrix.rails-version }} https://github.com/rails/rails.git ~/rails
           pushd ~/rails
           cat /home/runner/work/_temp/*.sh
           sed -i "s/Gem.ruby, '-w'/Gem.ruby, '-w0'/" ~/rails/activerecord/Rakefile
@@ -100,11 +114,22 @@ jobs:
           rm ~/rails/Gemfile.lock
           sed -i "/# Active Record./a gem 'activerecord-filter', require: 'active_record/filter', path: File.expand_path\(ENV['GITHUB_WORKSPACE']\)" ~/rails/Gemfile
           cat ~/rails/Gemfile
-          bundle update --jobs=3 --retry=3
+
+      - name: This can eventually be removed
+        run: |
+          sed -i 's/gem "minitest"$/gem "minitest"\ngem "minitest-mock", require: "minitest\/mock"/' ~/rails/Gemfile
+          sed -i 's/module ActiveRecord$/module Rails\nend\nmodule ActiveRecord/' ~/rails/activerecord/test/cases/adapters/postgresql/postgresql_adapter_test.rb || true
+          sed -i 's/t.options = "--profile" if ENV\["CI"\]//g' ~/rails/activerecord/Rakefile
 
       - name: Fix Weird Test Cases
         run: |
           sed -i 's|} - \[:|} - \[:distinct_on, :uniq_on, :|' ~/rails/activerecord/test/cases/relation/delegation_test.rb
+
+      - name: Bundle
+        run: |
+          pushd ~/rails
+          bundle update --jobs=3 --retry=3
+          popd
 
       - run: |
           pushd ~/rails/activerecord
@@ -119,10 +144,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rails: ['7.1.5.1', '7.2.2.1', '8.0.2']
-        ruby-version: ['3.4']
+        rails-version:
+          - 7.1.6
+          - 7.2.3
+          - 8.0.4
+          - 8.1.1
+        ruby-version:
+          - 3.4
         exclude:
-          - rails: '7.1.5.1'
+          - rails-version: '7.1.6'
             ruby-version: '3.4'
 
     steps:
@@ -135,7 +165,7 @@ jobs:
     
       - name: Download Rails
         run: |
-          git clone --branch v${{ matrix.rails }} https://github.com/rails/rails.git ~/rails
+          git clone --branch v${{ matrix.rails-version }} https://github.com/rails/rails.git ~/rails
           pushd ~/rails
           cat /home/runner/work/_temp/*.sh
           sed -i "s/Gem.ruby, '-w'/Gem.ruby, '-w0'/" ~/rails/activerecord/Rakefile
@@ -144,11 +174,25 @@ jobs:
           rm ~/rails/Gemfile.lock
           sed -i "/# Active Record./a gem 'activerecord-filter', require: 'active_record/filter', path: File.expand_path\(ENV['GITHUB_WORKSPACE']\)" ~/rails/Gemfile
           cat ~/rails/Gemfile
-          bundle update --jobs=3 --retry=3
 
+      - name: This can eventually be removed
+        run: |
+          sed -i 's/gem "minitest"$/gem "minitest"\ngem "minitest-mock", require: "minitest\/mock"/' ~/rails/Gemfile
+          cat ~/rails/Gemfile
+          sed -i 's/module ActiveRecord$/module Rails\nend\nmodule ActiveRecord/' ~/rails/activerecord/test/cases/adapters/sqlite3/dbconsole_test.rb
+          cat  ~/rails/activerecord/test/cases/adapters/sqlite3/dbconsole_test.rb
+          sed -i 's/t.options = "--profile" if ENV\["CI"\]//g' ~/rails/activerecord/Rakefile
+          cat ~/rails/activerecord/Rakefile
+      
       - name: Fix Weird Test Cases
         run: |
           sed -i 's|} - \[:|} - \[:distinct_on, :uniq_on, :|' ~/rails/activerecord/test/cases/relation/delegation_test.rb
+
+      - name: Bundle
+        run: |
+          pushd ~/rails
+          bundle update --jobs=3 --retry=3
+          popd
 
       - run: |
           pushd ~/rails/activerecord
@@ -165,10 +209,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rails: ['7.1.5.1', '7.2.2.1', '8.0.2']
-        ruby-version: ['3.4']
+        rails-version:
+          - 7.1.6
+          - 7.2.3
+          - 8.0.4
+          - 8.1.1
+        ruby-version:
+          - 3.4
         exclude:
-          - rails: '7.1.5.1'
+          - rails-version: '7.1.6'
             ruby-version: '3.4'
 
     steps:
@@ -187,7 +236,7 @@ jobs:
 
       - name: Download Rails
         run: |
-          git clone --branch v${{ matrix.rails }} https://github.com/rails/rails.git ~/rails
+          git clone --branch v${{ matrix.rails-version }} https://github.com/rails/rails.git ~/rails
           pushd ~/rails
           cat /home/runner/work/_temp/*.sh
           sed -i "s/Gem.ruby, '-w'/Gem.ruby, '-w0'/" ~/rails/activerecord/Rakefile
@@ -196,11 +245,25 @@ jobs:
           rm ~/rails/Gemfile.lock
           sed -i "/# Active Record./a gem 'activerecord-filter', require: 'active_record/filter', path: File.expand_path\(ENV['GITHUB_WORKSPACE']\)" ~/rails/Gemfile
           cat ~/rails/Gemfile
-          bundle update --jobs=3 --retry=3
+
+      - name: This can eventually be removed
+        run: |
+          sed -i 's/gem "minitest"$/gem "minitest"\ngem "minitest-mock", require: "minitest\/mock"/' ~/rails/Gemfile
+          sed -i 's/class WarningsTest < ActiveRecord::AbstractMysqlTestCase$/module Rails\nend\nclass WarningsTest < ActiveRecord::AbstractMysqlTestCase/' ~/rails/activerecord/test/cases/adapters/abstract_mysql_adapter/warnings_test.rb || true
+          sed -i 's/class Mysql2AdapterTest < ActiveRecord::Mysql2TestCase$/module Rails\nend\nclass Mysql2AdapterTest < ActiveRecord::Mysql2TestCase/' ~/rails/activerecord/test/cases/adapters/mysql2/mysql2_adapter_test.rb || true
+          sed -i 's/t.options = "--profile" if ENV\["CI"\]//g' ~/rails/activerecord/Rakefile
+          cat ~/rails/activerecord/Rakefile
+
 
       - name: Fix Weird Test Cases
         run: |
           sed -i 's|} - \[:|} - \[:distinct_on, :uniq_on, :|' ~/rails/activerecord/test/cases/relation/delegation_test.rb
+
+      - name: Bundle
+        run: |
+          pushd ~/rails
+          bundle update --jobs=3 --retry=3
+          popd
 
       - run: |
           pushd ~/rails/activerecord
