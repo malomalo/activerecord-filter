@@ -51,7 +51,7 @@ module ActiveRecord::Filter::RelationExtension
     @filter_clause_factory ||= ActiveRecord::Filter::FilterClauseFactory.new(klass, predicate_builder)
   end
 
-  if ActiveRecord.version >= "7.2"
+  if ActiveRecord.version < "8.1" && ActiveRecord.version >= "7.2"
     def build_arel(connection, aliases = nil)
       arel = super
       my_alias_tracker = ActiveRecord::Associations::AliasTracker.create(model.connection_pool, table.name, [])
