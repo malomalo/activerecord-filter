@@ -134,6 +134,66 @@ class HasManyFilterTest < ActiveSupport::TestCase
     SQL
   end
 
+  test "::filter filter_on with proc joins" do
+    photos_table = Photo.arel_table
+    accounts_table = Account.arel_table
+
+    Account.filter_on :by_format, -> (value) {
+      if value.is_a?(Array) && value.size > 1
+        accounts_table.join(photos_table).on(
+          photos_table[:account_id].eq(accounts_table[:id])
+        ).join_sources
+      else
+        :photos
+      end
+    } do |klass, table, key, value, relation_trail, alias_tracker|
+      if value.is_a?(Array)
+        children = value.map { |v| photos_table[:format].eq(v) }
+        Arel::Nodes::And.new(children)
+      else
+        photos_table[:format].eq(value)
+      end
+    end
+
+    query = Account.filter(by_format: 'jpg')
+    assert_sql(<<-SQL, query)
+      SELECT accounts.* FROM accounts
+      LEFT OUTER JOIN photos ON photos.account_id = accounts.id
+      WHERE photos.format = 'jpg'
+    SQL
+
+    query = Account.filter(by_format: ['jpg', 'png'])
+    assert_sql(<<-SQL, query)
+      SELECT accounts.* FROM accounts
+      INNER JOIN photos ON photos.account_id = accounts.id
+      WHERE photos.format = 'jpg' AND photos.format = 'png'
+    SQL
+  ensure
+    Account.filters.delete('by_format')
+  end
+
+  test "::filter filter_on with arel join node" do
+    photos_table = Photo.arel_table
+    accounts_table = Account.arel_table
+
+    join_node = accounts_table.join(photos_table).on(
+      photos_table[:account_id].eq(accounts_table[:id])
+    ).join_sources.first
+
+    Account.filter_on :with_photo_format, join_node do |klass, table, key, value, relation_trail, alias_tracker|
+      photos_table[:format].eq(value)
+    end
+
+    query = Account.filter(with_photo_format: 'jpg')
+    assert_sql(<<-SQL, query)
+      SELECT accounts.* FROM accounts
+      INNER JOIN photos ON photos.account_id = accounts.id
+      WHERE photos.format = 'jpg'
+    SQL
+  ensure
+    Account.filters.delete('with_photo_format')
+  end
+
   test "::filter filter_on" do
     query = Photo.filter(no_properties_where_state_is_null: true)
 

@@ -28,6 +28,15 @@ module ActiveRecord::Filter::PredicateBuilderExtension
                   relations << j
                 end
               end
+            elsif js.is_a?(Proc)
+              resolved = js.call(value)
+              Array(resolved).compact.each do |j|
+                if j.is_a?(String)
+                  custom << j
+                else
+                  relations << j
+                end
+              end
             elsif js
               if js.is_a?(String)
                 custom << js

@@ -68,18 +68,13 @@ jobs:
       fail-fast: false
       matrix:
         rails-version:
-          - 7.1.6
           - 7.2.3
           - 8.0.4
-          - 8.1.1
+          - 8.1.2
         ruby-version:
           - 3.4
         postgres-version:
           - 18
-        exclude:
-          - rails-version: '7.1.6'
-            ruby-version: '3.4'
-            postgres-version: '18'
 
     steps:
       - name: Install Postgresql
@@ -145,15 +140,11 @@ jobs:
       fail-fast: false
       matrix:
         rails-version:
-          - 7.1.6
           - 7.2.3
           - 8.0.4
-          - 8.1.1
+          - 8.1.2
         ruby-version:
           - 3.4
-        exclude:
-          - rails-version: '7.1.6'
-            ruby-version: '3.4'
 
     steps:
       - uses: actions/checkout@v4
@@ -210,15 +201,11 @@ jobs:
       fail-fast: false
       matrix:
         rails-version:
-          - 7.1.6
           - 7.2.3
           - 8.0.4
-          - 8.1.1
+          - 8.1.2
         ruby-version:
           - 3.4
-        exclude:
-          - rails-version: '7.1.6'
-            ruby-version: '3.4'
 
     steps:
       - name: Install MySQL
