@@ -10,11 +10,7 @@ private
       left_joins = select_named_joins(left_outer_joins_values, stashed_left_joins) do |left_join|
         if left_join.is_a?(ActiveRecord::QueryMethods::CTEJoin)
           buckets[:join_node] << build_with_join_node(left_join.name, Arel::Nodes::OuterJoin)
-# Add this elsif becasuse PR https://github.com/rails/rails/pull/46843
-# Changed a line https://github.com/rails/rails/blob/ae2983a75ca658d84afa414dea8eaf1cca87aa23/activerecord/lib/active_record/relation/query_methods.rb#L1769
-# that was probably a bug beforehand but allowed nodes to be joined
-# which I think was and still is supported?
-        elsif left_join.is_a?(Arel::Nodes::OuterJoin)
+        elsif left_join.is_a?(Arel::Nodes::Join)
           buckets[:join_node] << left_join
         else
           raise ArgumentError, "only Hash, Symbol and Array are allowed"
