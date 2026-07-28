@@ -204,6 +204,15 @@ class HasManyFilterTest < ActiveSupport::TestCase
     SQL
   end
 
+  test "::filter chained calls with string and symbol keys reuse the same join" do
+    query = Account.filter('photos' => {'format' => 'jpg'}).filter(photos: {format: 'png'})
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT accounts.* FROM accounts
+      LEFT OUTER JOIN photos ON photos.account_id = accounts.id
+      WHERE photos.format = 'jpg' AND photos.format = 'png'
+    SQL
+  end
+
   test "::filter has_many filter_on" do
     query = Account.filter(photos: {no_properties_where_state_is_null: true})
 
