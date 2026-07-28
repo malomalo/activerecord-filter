@@ -64,17 +64,17 @@ module ActiveRecord::Filter::PredicateBuilderExtension
                 ]
               else
                 {
-                  key => build_filter_joins(reflection.klass, value, [], custom)
+                  reflection.name => build_filter_joins(reflection.klass, value, [], custom)
                 }
               end
             elsif value.is_a?(Array)
               value.each do |v|
                 relations << {
-                  key => build_filter_joins(reflection.klass, v, [], custom)
+                  reflection.name => build_filter_joins(reflection.klass, v, [], custom)
                 }
               end
             elsif value != true && value != false && value != 'true' && value != 'false' && !value.nil?
-              relations << key
+              relations << reflection.name
             end
           elsif !klass.columns_hash.has_key?(key.to_s) && key.to_s.end_with?('_ids') && reflection = klass._reflections[key.to_s.gsub(/_ids$/, 's').to_sym]
             relations << reflection.name
