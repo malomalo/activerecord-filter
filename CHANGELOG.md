@@ -1,6 +1,6 @@
 # Changelog
 
-## [9.0.0] - Unreleased
+## [9.0.0] - 2026-08-27
 
 ### Changed
 - Switched to independent Semantic Versioning. Prior releases tracked the Rails
@@ -37,7 +37,7 @@ RubyGems for details:
 - [6.1.0] - 2021-01-14
 - [6.0.0.7] - 2020-06-26
 
-[9.0.0]: https://github.com/malomalo/activerecord-filter/compare/v8.1.0...master
+[9.0.0]: https://rubygems.org/gems/activerecord-filter/versions/9.0.0
 [8.1.0]: https://rubygems.org/gems/activerecord-filter/versions/8.1.0
 [8.0.0]: https://rubygems.org/gems/activerecord-filter/versions/8.0.0
 [7.0.1]: https://rubygems.org/gems/activerecord-filter/versions/7.0.1
