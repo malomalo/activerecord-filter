@@ -10,11 +10,19 @@ Gem::Specification.new do |spec|
   spec.description   = %q{A safe way to accept user parameters and query against your ActiveRecord Models}
   spec.summary       = %q{A safe way to accept user parameters and query against your ActiveRecord Models}
 
+  spec.metadata = {
+    'homepage_uri'          => spec.homepage,
+    'source_code_uri'       => spec.homepage,
+    'changelog_uri'         => "#{spec.homepage}/blob/master/CHANGELOG.md",
+    'rubygems_mfa_required' => 'true'
+  }
+
+  spec.required_ruby_version = '>= 3.3'
+
   spec.extra_rdoc_files = %w(README.md)
   spec.rdoc_options.concat ['--main', 'README.md']
 
   spec.files         = `git ls-files -- README.md {lib,ext}/*`.split("\n")
-  spec.test_files    = `git ls-files -- {test}/*`.split("\n")
   spec.require_paths = ["lib"]
 
   spec.add_runtime_dependency 'activerecord', '>= 8.0.0'
