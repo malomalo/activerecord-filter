@@ -1,5 +1,5 @@
 source "https://rubygems.org"
 git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 
-# Specify your gem's dependencies in sunstone.gemspec
+# Specify your gem's dependencies in activerecord-filter.gemspec
 gemspec

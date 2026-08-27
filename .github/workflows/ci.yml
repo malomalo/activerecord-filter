@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  sunstone:
+  filter:
     name: ActiveRecord::Filter Test
     runs-on: ubuntu-24.04
 
