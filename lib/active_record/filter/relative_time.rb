@@ -9,12 +9,17 @@ module ActiveRecord::Filter
   #
   #   Property.filter(created_at: {gt: 'now'})
   #
-  # or a single-pair Hash of `{anchor => operations}`, where the anchor is a
-  # keyword or a parseable date/time and the operations are applied in order:
+  # or a Hash with an `at` anchor — a keyword or a parseable date/time —
+  # alongside any of the operations to apply to it:
   #
-  #   Property.filter(created_at: {gt: {'now' => {add: '7 days'}}})
-  #   Property.filter(created_at: {lte: {'2026-08-02' => {subtract: '5 months'}}})
-  #   Property.filter(created_at: {lt: {'2027-01-05' => {end_of: 'month'}}})
+  #   Property.filter(created_at: {gt: {at: 'now', add: '7 days'}})
+  #   Property.filter(created_at: {lte: {at: '2026-08-02', subtract: '5 months'}})
+  #   Property.filter(created_at: {lt: {at: '2027-01-05', end_of: 'month'}})
+  #
+  # `at` is what marks the Hash as relative, so a predicate Hash can never be
+  # mistaken for one. Operations are applied in a fixed order (see OPERATIONS)
+  # rather than the order they were written, so the result does not depend on
+  # Hash ordering.
   #
   # Only columns of a date/time type are inspected, so nothing here can change
   # the meaning of a filter on any other column.
@@ -23,7 +28,13 @@ module ActiveRecord::Filter
     # Column types whose values may be relative.
     COLUMN_TYPES = %i[date datetime time timestamp timestamptz].freeze
 
-    # The operations that may appear in the operations Hash of an anchor.
+    # The key that marks a Hash as a relative date/time.
+    ANCHOR_KEY = 'at'
+
+    # The operations that may accompany an anchor, in the order they are
+    # applied. Shifting before truncating is what almost every filter wants
+    # ("the start of last month"), and fixing the order keeps the result
+    # independent of how the Hash was written or serialized.
     OPERATIONS = %i[add subtract start_of end_of].freeze
 
     KEYWORDS = %w[now today yesterday tomorrow].freeze
@@ -80,8 +91,8 @@ module ActiveRecord::Filter
         elsif keyword?(value)
           resolve_anchor(value)
         elsif relative_hash?(value)
-          anchor, operations = value.first
-          apply(resolve_anchor(anchor), operations)
+          operations = value.reject { |key, _| key.to_s == ANCHOR_KEY }
+          apply(resolve_anchor(anchor_of(value)), operations)
         else
           value
         end
@@ -92,41 +103,33 @@ module ActiveRecord::Filter
           KEYWORDS.include?(value.to_s.strip.downcase)
       end
 
-      # `{anchor => operations}`. The operations are what identify the form, so
-      # that a predicate Hash (`{gt: ...}`) can never be mistaken for an anchor.
-      # With operations present the anchor must resolve — an unparseable one is
-      # an error rather than a value quietly passed through to the adapter.
-      # With no operations there is nothing to go on, so the anchor itself has
-      # to look like a date/time.
+      # The `at` key is what identifies the form, so a predicate Hash
+      # (`{gt: ...}`) can never be mistaken for a relative one and there is no
+      # shape to guess at. Anything else in the Hash must be an operation, and
+      # an anchor that will not resolve is an error rather than a value quietly
+      # passed through to the adapter.
       def relative_hash?(value)
-        return false unless value.is_a?(Hash) && value.size == 1
-
-        operations = value.values.first
-        return false unless operations.is_a?(Hash)
-        return false unless operations.keys.all? { |key| OPERATIONS.include?(key.to_s.to_sym) }
-
-        operations.any? || anchor?(value.keys.first)
+        value.is_a?(Hash) && value.any? { |key, _| key.to_s == ANCHOR_KEY }
       end
 
-      def anchor?(value)
-        !resolve_anchor(value, raise_on_error: false).nil?
+      def anchor_of(value)
+        value.find { |key, _| key.to_s == ANCHOR_KEY }.last
       end
 
-      def resolve_anchor(value, raise_on_error: true)
+      def resolve_anchor(value)
         case value
         when Time, DateTime
           value
         when Date
           value.respond_to?(:in_time_zone) && Time.zone ? value.in_time_zone : value.to_time
         when String, Symbol
-          resolve_anchor_string(value.to_s.strip, raise_on_error)
+          resolve_anchor_string(value.to_s.strip)
         else
-          return nil unless raise_on_error
           raise ActiveRecord::UnkownFilterError.new("Unknown date/time anchor: #{value.inspect}")
         end
       end
 
-      def resolve_anchor_string(value, raise_on_error)
+      def resolve_anchor_string(value)
         case value.downcase
         when 'now'       then Time.current
         when 'today'     then Time.current.beginning_of_day
@@ -139,7 +142,7 @@ module ActiveRecord::Filter
             nil
           end
 
-          if parsed.nil? && raise_on_error
+          if parsed.nil?
             raise ActiveRecord::UnkownFilterError.new("Unknown date/time anchor: #{value.inspect}")
           end
 
@@ -147,15 +150,26 @@ module ActiveRecord::Filter
         end
       end
 
+      # Operations are applied in OPERATIONS order, not the order they appear
+      # in the Hash, so `{subtract: '1 month', start_of: 'month'}` and
+      # `{start_of: 'month', subtract: '1 month'}` mean the same thing.
       def apply(time, operations)
-        operations.inject(time) do |result, (operation, argument)|
-          case operation.to_s.to_sym
-          when :add       then result + parse_duration(argument)
-          when :subtract  then result - parse_duration(argument)
-          when :start_of  then truncate(result, argument, :beginning)
-          when :end_of    then truncate(result, argument, :end)
-          else
-            raise ActiveRecord::UnkownFilterError.new("Unknown date/time operation: #{operation.inspect}")
+        operations = operations.transform_keys { |key| key.to_s.to_sym }
+
+        unknown = operations.keys - OPERATIONS
+        if unknown.any?
+          raise ActiveRecord::UnkownFilterError.new("Unknown date/time operation: #{unknown.first.inspect}")
+        end
+
+        OPERATIONS.inject(time) do |result, operation|
+          next result unless operations.key?(operation)
+          argument = operations[operation]
+
+          case operation
+          when :add      then result + parse_duration(argument)
+          when :subtract then result - parse_duration(argument)
+          when :start_of then truncate(result, argument, :beginning)
+          when :end_of   then truncate(result, argument, :end)
           end
         end
       end

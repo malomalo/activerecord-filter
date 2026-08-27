@@ -143,21 +143,20 @@ Property.filter(created_at: {gt: 'now'})
 Property.filter(created_at: {gte: 'today'})
 ```
 
-For anything more, pass a single-pair Hash of `{anchor => operations}`. The
-anchor is a keyword or any parseable date/time, and the operations are applied
-to it in the order they are given:
+For anything more, pass a Hash with an `at` anchor — a keyword or any parseable
+date/time — alongside the operations to apply to it:
 
 ```ruby
-Property.filter(created_at: {gt: {now: {add: '7 days'}}})
+Property.filter(created_at: {gt: {at: 'now', add: '7 days'}})
 # => "... WHERE properties.created_at > '2026-09-03 14:23:45' ..."
 
-Property.filter(created_at: {lte: {'2026-08-02' => {subtract: '5 months'}}})
+Property.filter(created_at: {lte: {at: '2026-08-02', subtract: '5 months'}})
 # => "... WHERE properties.created_at <= '2026-03-02 00:00:00' ..."
 
-Property.filter(created_at: {gt: {now: {start_of: 'day'}}})
+Property.filter(created_at: {gt: {at: 'now', start_of: 'day'}})
 # => "... WHERE properties.created_at > '2026-08-27 00:00:00' ..."
 
-Property.filter(created_at: {lt: {'2027-01-05' => {end_of: 'month'}}})
+Property.filter(created_at: {lt: {at: '2027-01-05', end_of: 'month'}})
 # => "... WHERE properties.created_at < '2027-01-31 23:59:59.999999' ..."
 ```
 
@@ -176,13 +175,15 @@ number of seconds. Units are `second`, `minute`, `hour`, `day`, `week`,
 `month`, `quarter` and `year`, singular or plural, and `start_of`/`end_of` take
 the same set.
 
-Because operations are applied in order, they compose:
+Operations compose, and they are always applied in the order listed above —
+shift first, then truncate — regardless of how the Hash is written or
+serialized:
 
 ```ruby
 # The previous calendar month
 Property.filter(created_at: {
-  gte: {now: {subtract: '1 month', start_of: 'month'}},
-  lt:  {now: {start_of: 'month'}}
+  gte: {at: 'now', subtract: '1 month', start_of: 'month'},
+  lt:  {at: 'now', start_of: 'month'}
 })
 ```
 
@@ -190,7 +191,7 @@ An anchor on its own is just that point in time, which is useful when the
 filter is built by a client that always emits the same shape:
 
 ```ruby
-Property.filter(created_at: {gt: {'2026-01-01' => {}}})
+Property.filter(created_at: {gt: {at: '2026-01-01'}})
 ```
 
 Relative values work anywhere a literal would, including inside `in` and as a
@@ -198,11 +199,13 @@ bare equality:
 
 ```ruby
 Property.filter(created_at: 'now')
-Property.filter(created_at: {in: ['today', {today: {subtract: '1 week'}}]})
+Property.filter(created_at: {in: ['today', {at: 'today', subtract: '1 week'}]})
+Property.filter(created_at: {at: 'now', start_of: 'day'})
 ```
 
-Only date/time columns are inspected, so this cannot change the meaning of a
-filter on any other column. An anchor that will not parse, or an unknown unit,
+Only date/time columns are inspected, and only a Hash with an `at` key is read
+as a relative value, so this cannot change the meaning of any filter that works
+today. An anchor that will not parse, an unknown operation, or an unknown unit
 raises `ActiveRecord::UnkownFilterError`.
 
 It can also filter across associations. Any association (`belongs_to`,
