@@ -10,25 +10,33 @@ Gem::Specification.new do |spec|
   spec.description   = %q{A safe way to accept user parameters and query against your ActiveRecord Models}
   spec.summary       = %q{A safe way to accept user parameters and query against your ActiveRecord Models}
 
+  spec.metadata = {
+    'homepage_uri'          => spec.homepage,
+    'source_code_uri'       => spec.homepage,
+    'changelog_uri'         => "#{spec.homepage}/blob/master/CHANGELOG.md",
+    'rubygems_mfa_required' => 'true'
+  }
+
+  spec.required_ruby_version = '>= 3.3'
+
   spec.extra_rdoc_files = %w(README.md)
   spec.rdoc_options.concat ['--main', 'README.md']
 
   spec.files         = `git ls-files -- README.md {lib,ext}/*`.split("\n")
-  spec.test_files    = `git ls-files -- {test}/*`.split("\n")
   spec.require_paths = ["lib"]
 
-  spec.add_runtime_dependency 'activerecord', '>= 7.2.0'
-  spec.add_runtime_dependency 'arel-extensions', '>= 7.2.0'
+  spec.add_runtime_dependency 'activerecord', '>= 8.0.0'
+  spec.add_runtime_dependency 'arel-extensions', '>= 8.0.0'
 
   spec.add_development_dependency 'pg'
-  spec.add_development_dependency 'actionpack', '>= 7.2.0'
+  spec.add_development_dependency 'actionpack', '>= 8.0.0'
   spec.add_development_dependency "bundler"
   spec.add_development_dependency "rake"
   spec.add_development_dependency 'minitest'
   spec.add_development_dependency 'minitest-reporters'
   spec.add_development_dependency "benchmark"
   spec.add_development_dependency "simplecov"
-  spec.add_development_dependency "railties", '>= 7.2.0'
+  spec.add_development_dependency "railties", '>= 8.0.0'
   spec.add_development_dependency "faker"
   spec.add_development_dependency "byebug"
   spec.add_development_dependency "activerecord-postgis-adapter"

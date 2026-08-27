@@ -1,9 +1,13 @@
 # ActiveRecord::Filter
 
-`ActiveRecord::Filter` provides and easy way to accept user input and filter a query by the input.
+`ActiveRecord::Filter` provides an easy way to accept user input and filter a query by that input.
 
-Installtion
------------
+## Requirements
+
+- Ruby >= 3.3
+- ActiveRecord >= 8.0
+
+## Installation
 
 - Add `gem 'activerecord-filter', require: 'active_record/filter'`
 - Run `bundle install`
@@ -124,10 +128,39 @@ Property.filter("metadata.key": { eq: 'value' }).to_sql
 # => "...WHERE "properties"."metadata" #> '{key}' = 'value'..."
 ```
 
-It can also sort on relations:
+It can also filter across associations. Any association (`belongs_to`,
+`has_many`, `has_one`, `has_and_belongs_to_many`, `has_many :through`) can be
+nested, and the join is added for you:
 
 ```ruby
 Photo.filter(property: {name: 'Empire State'}).to_sql
 # => "... LEFT OUTER JOIN properties ON properties.id = photos.property_id ...
 # => "... WHERE properties.name = 'Empire State'"
+```
+
+Pass `true`/`false` against an association to filter on its presence:
+
+```ruby
+Account.filter(photos: true).to_sql   # accounts that have photos
+Account.filter(photos: false).to_sql  # accounts with no photos
+```
+
+For a polymorphic association, scope it to a type with `as:`:
+
+```ruby
+View.filter(subject: {as: 'Property', name: 'Name'}).to_sql
+```
+
+Combining conditions with AND / OR
+----------------------------------
+
+Pass an array to group conditions. Use the strings `'AND'` / `'OR'` as
+separators, and nest arrays for precedence:
+
+```ruby
+Property.filter([{id: 10}, 'OR', {name: 'name'}]).to_sql
+# => "... WHERE ((properties.id = 10) OR (properties.name = 'name'))"
+
+Property.filter([{id: 10}, 'AND', [{id: 10}, 'OR', {name: 'name'}]]).to_sql
+# => "... WHERE properties.id = 10 AND ((properties.id = 10) OR (properties.name = 'name'))"
 ```
