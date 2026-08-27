@@ -170,8 +170,8 @@ module ActiveRecord::Filter::PredicateBuilderExtension
       else
         geometry_from_value(value)
       end
-    elsif ActiveRecord::Filter::RelativeTime.applies_to?(column)
-      value = ActiveRecord::Filter::RelativeTime.resolve_filter_value(value)
+    elsif ActiveRecord::Filter::RelativeTimeExtension.applies_to?(column)
+      value = ActiveRecord::Filter::RelativeTimeExtension.resolve_filter_value(value)
     end
 
     if value.is_a?(Hash)

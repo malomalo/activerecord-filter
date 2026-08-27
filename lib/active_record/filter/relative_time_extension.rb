@@ -23,7 +23,7 @@ module ActiveRecord::Filter
   #
   # Only columns of a date/time type are inspected, so nothing here can change
   # the meaning of a filter on any other column.
-  module RelativeTime
+  module RelativeTimeExtension
 
     # Column types whose values may be relative.
     COLUMN_TYPES = %i[date datetime time timestamp timestamptz].freeze
