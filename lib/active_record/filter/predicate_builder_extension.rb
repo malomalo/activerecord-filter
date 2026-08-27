@@ -170,8 +170,10 @@ module ActiveRecord::Filter::PredicateBuilderExtension
       else
         geometry_from_value(value)
       end
+    elsif ActiveRecord::Filter::RelativeTime.applies_to?(column)
+      value = ActiveRecord::Filter::RelativeTime.resolve_filter_value(value)
     end
-    
+
     if value.is_a?(Hash)
       nodes = value.map do |subkey, subvalue|
         expand_filter_for_arel_attribute(column, attribute, subkey, subvalue)

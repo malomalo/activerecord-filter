@@ -11,6 +11,7 @@ module ActiveRecord::Filter
   autoload :FilterClauseFactory, 'active_record/filter/filter_clause_factory'
   autoload :RelationExtension, 'active_record/filter/relation_extension'
   autoload :PredicateBuilderExtension, 'active_record/filter/predicate_builder_extension'
+  autoload :RelativeTime, 'active_record/filter/relative_time'
   autoload :SpawnMethodsExtension, 'active_record/filter/spawn_methods_extension'
   
   delegate :filter, :filter_for, to: :all
