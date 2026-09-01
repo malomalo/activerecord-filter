@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Security
+- Require `arel-extensions` >= 9.0.1, which fixes a SQL injection in JSON path
+  handling (GHSA-75hc-9q9v-9cv2). A filter key such as `"metadata.subkey"` was
+  interpolated into the `#>'{...}'` array literal unescaped, so an
+  attacker-controlled key could break out of the path and inject SQL.
+
+### Changed
+- JSON path predicates now render as `#> array['key']` instead of
+  `#>'{key}'` (the arel-extensions fix above). PostgreSQL const-folds the array
+  back to `'{key}'::text[]`, so expression indexes written against the literal
+  form still match.
+
 ## [9.0.0] - 2026-08-27
 
 ### Changed
