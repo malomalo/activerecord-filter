@@ -125,7 +125,7 @@ Property.filter(metadata: { has_any_key: ['key1', 'key2'] }).to_sql
 # => "...WHERE "properties"."metadata" ?| array['key1', 'key2']..."
 
 Property.filter("metadata.key": { eq: 'value' }).to_sql
-# => "...WHERE "properties"."metadata" #> '{key}' = 'value'..."
+# => "...WHERE "properties"."metadata" #> array['key'] = 'value'..."
 ```
 
 It can also filter across associations. Any association (`belongs_to`,

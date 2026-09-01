@@ -1,5 +1,25 @@
 # Changelog
 
+## [Unreleased]
+
+### Security
+- Require `arel-extensions` >= 9.0.1, which fixes a SQL injection in JSON path
+  handling (GHSA-75hc-9q9v-9cv2). A filter key such as `"metadata.subkey"` was
+  interpolated into the `#>'{...}'` array literal unescaped, so an
+  attacker-controlled key could break out of the path and inject SQL.
+
+### Changed
+- JSON path predicates now render as `#> array['key']` instead of
+  `#>'{key}'` (the arel-extensions fix above). PostgreSQL const-folds the array
+  back to `'{key}'::text[]`, so expression indexes written against the literal
+  form still match.
+
+### CI
+- Raise `max_connections` to 500 on the Postgres and MySQL jobs. The ActiveRecord
+  suite can exhaust the 100-slot PGDG default depending on the minitest seed,
+  cascading into hundreds of "too many clients already" errors unrelated to the
+  gem. Ported from malomalo/arel-extensions#13.
+
 ## [9.0.0] - 2026-08-27
 
 ### Changed
