@@ -14,6 +14,12 @@
   back to `'{key}'::text[]`, so expression indexes written against the literal
   form still match.
 
+### CI
+- Raise `max_connections` to 500 on the Postgres and MySQL jobs. The ActiveRecord
+  suite can exhaust the 100-slot PGDG default depending on the minitest seed,
+  cascading into hundreds of "too many clients already" errors unrelated to the
+  gem. Ported from malomalo/arel-extensions#13.
+
 ## [9.0.0] - 2026-08-27
 
 ### Changed

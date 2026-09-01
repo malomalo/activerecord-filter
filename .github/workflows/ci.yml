@@ -39,7 +39,13 @@ jobs:
           sudo apt-get update
           sudo apt-get -y install postgresql-${{ matrix.postgres-version }}-postgis-3
           sudo systemctl start postgresql@${{ matrix.postgres-version }}-main.service
+          # The AR suite can exceed the default 100 connection slots depending on
+          # the minitest seed (pool/isolated cases in flight), which cascades into
+          # hundreds of "too many clients already" errors. Give it headroom.
+          sudo -u postgres psql -c "ALTER SYSTEM SET max_connections = 500;"
+          sudo systemctl restart postgresql@${{ matrix.postgres-version }}-main.service
           sudo systemctl status postgresql@${{ matrix.postgres-version }}-main.service
+          sudo -u postgres psql -c "SHOW max_connections;"
           sudo pg_lsclusters
           sudo -u postgres createuser runner --superuser
           sudo -u postgres psql -c "ALTER USER runner WITH PASSWORD 'runner';"
@@ -87,7 +93,13 @@ jobs:
           sudo apt-get update
           sudo apt-get -y install postgresql-${{ matrix.postgres-version }}-postgis-3
           sudo systemctl start postgresql@${{ matrix.postgres-version }}-main.service
+          # The AR suite can exceed the default 100 connection slots depending on
+          # the minitest seed (pool/isolated cases in flight), which cascades into
+          # hundreds of "too many clients already" errors. Give it headroom.
+          sudo -u postgres psql -c "ALTER SYSTEM SET max_connections = 500;"
+          sudo systemctl restart postgresql@${{ matrix.postgres-version }}-main.service
           sudo systemctl status postgresql@${{ matrix.postgres-version }}-main.service
+          sudo -u postgres psql -c "SHOW max_connections;"
           sudo pg_lsclusters
           sudo -u postgres createuser runner --superuser
           sudo -u postgres psql -c "ALTER USER runner WITH PASSWORD 'runner';"
@@ -253,6 +265,13 @@ jobs:
     steps:
       - name: Setup MySQL user
         run: |
+          # Match the headroom given to the Postgres jobs: the pool and forked
+          # isolated cases are adapter-agnostic, so the same seed-dependent
+          # connection exhaustion is possible here on the default 151 slots.
+          # max_connections is dynamic, so no restart is needed -- but MySQL
+          # silently clamps it when open_files_limit is low, hence the echo.
+          mysql -h127.0.0.1 -P3306 -uroot -e "SET GLOBAL max_connections = 500;"
+          mysql -h127.0.0.1 -P3306 -uroot -e "SELECT @@max_connections;"
           mysql -h127.0.0.1 -P3306 -uroot -e "CREATE USER 'rails'@'%';"
           mysql -h127.0.0.1 -P3306 -uroot -e "GRANT ALL PRIVILEGES ON *.* TO 'rails'@'%' WITH GRANT OPTION;"
 
