@@ -248,7 +248,6 @@ module ActiveRecord::Filter::PredicateBuilderExtension
     return range_from_hash(column, value) if value.is_a?(Hash)
 
     element_type = table.send(:klass).lease_connection.type_to_sql(range_type(column).subtype.type)
-
     Arel::Nodes::NamedFunction.new('CAST', [
       Arel::Nodes::As.new(Arel::Nodes.build_quoted(value), Arel::Nodes::SqlLiteral.new(element_type))
     ])
@@ -262,7 +261,7 @@ module ActiveRecord::Filter::PredicateBuilderExtension
   # `*range(lower, upper, bounds)` constructor, which quotes each bound
   # separately rather than interpolating them into a range literal.
   def range_from_hash(column, value)
-    hash = value.transform_keys { |key| key.to_s }
+    hash = value.transform_keys(&:to_s)
 
     unknown = hash.keys - RANGE_KEYS
     if unknown.any? || hash.empty?
@@ -306,15 +305,12 @@ module ActiveRecord::Filter::PredicateBuilderExtension
   def expand_filter_for_arel_attribute(column, attribute, key, value)
     case key.to_sym
     when :contains
-      case column.type
-      when :geometry
+      if column.type == :geometry
         Arel::Nodes::NamedFunction.new('ST_Contains', [attribute, value])
+      elsif range_column?(column)
+        attribute.contains(range_from_value(column, value))
       else
-        if range_column?(column)
-          attribute.contains(range_from_value(column, value))
-        else
-          attribute.contains(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
-        end
+        attribute.contains(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
       end
     when :contained_by
       if range_column?(column)
@@ -323,15 +319,12 @@ module ActiveRecord::Filter::PredicateBuilderExtension
         attribute.contained_by(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
       end
     when :equal_to, :eq
-      case column.type
-      when :geometry
+      if column.type == :geometry
         Arel::Nodes::NamedFunction.new('ST_Equals', [attribute, value])
+      elsif range_column?(column) && value.is_a?(Hash)
+        attribute.eq(range_from_hash(column, value))
       else
-        if range_column?(column) && value.is_a?(Hash)
-          attribute.eq(range_from_hash(column, value))
-        else
-          attribute.eq(value)
-        end
+        attribute.eq(value)
       end
     when :excludes
       attribute.excludes(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
@@ -362,15 +355,12 @@ module ActiveRecord::Filter::PredicateBuilderExtension
     when :not_in
       attribute.not_in(value)
     when :overlaps
-      case column.type
-      in :geometry
+      if column.type == :geometry
         attribute.overlaps(value)
+      elsif range_column?(column)
+        attribute.overlaps(range_from_value(column, value))
       else
-        if range_column?(column)
-          attribute.overlaps(range_from_value(column, value))
-        else
-          attribute.overlaps(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
-        end
+        attribute.overlaps(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
       end
     when :not_overlaps
       attribute.not_overlaps(value)

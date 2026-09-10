@@ -222,4 +222,28 @@ class RangeColumnFilterTest < ActiveSupport::TestCase
     end
   end
 
+  # The element type is resolved through the connection rather than a constant
+  # because ActiveRecord shifts the subtype symbol with the app's datetime_type
+  # setting — :datetime under one, :timestamp under the other. type_to_sql is
+  # what reconciles them, so a tsrange casts to timestamp either way. A static
+  # :datetime => 'timestamp' map would emit timestamptz under the second.
+  test "the point cast survives a datetime_type change" do
+    adapter = ActiveRecord::ConnectionAdapters::PostgreSQLAdapter
+    original = adapter.datetime_type
+
+    [:timestamp, :timestamptz].each do |setting|
+      adapter.datetime_type = setting
+      Player.reset_column_information
+
+      assert_sql(<<-SQL, Player.filter(career_period: {contains: '2005-06-15'}))
+        SELECT players.*
+        FROM players
+        WHERE players.career_period @> CAST('2005-06-15' AS timestamp)
+      SQL
+    end
+  ensure
+    adapter.datetime_type = original
+    Player.reset_column_information
+  end
+
 end
