@@ -205,4 +205,21 @@ class RangeColumnFilterTest < ActiveSupport::TestCase
     Player.reset_column_information
   end
 
+  # A Hash operand to a range predicate is always a range, so an unrecognised
+  # bound key is a typo rather than something to fall through on.
+  test "an unknown bound key raises" do
+    error = assert_raises(ActiveRecord::UnkownFilterError) do
+      Player.filter(career_period: {contains: {bgein: '2005-01-01', end: '2009-01-01'}}).to_sql
+    end
+    assert_match(/Unknown range bound "bgein"/, error.message)
+
+    assert_raises(ActiveRecord::UnkownFilterError) do
+      Player.filter(career_period: {eq: {bgein: '2005-01-01'}}).to_sql
+    end
+
+    assert_raises(ActiveRecord::UnkownFilterError) do
+      Player.filter(career_period: {contains: {}}).to_sql
+    end
+  end
+
 end

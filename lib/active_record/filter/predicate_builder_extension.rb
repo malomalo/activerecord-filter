@@ -236,15 +236,6 @@ module ActiveRecord::Filter::PredicateBuilderExtension
     type.is_a?(ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Range) ? type : nil
   end
 
-  # True when the Hash describes a range (`{begin:, end:}`) rather than a Hash
-  # of predicates (`{overlaps: ...}`). Every key must be a bound key, and none
-  # of them is a predicate name, so the two can never be confused.
-  def range_hash?(value)
-    return false unless value.is_a?(Hash) && !value.empty?
-
-    (value.keys.map { |key| key.to_s } - RANGE_KEYS).empty?
-  end
-
   # The right-hand operand for a range predicate. ActiveRecord types a range
   # column as OID::Range, so a Ruby Range serializes itself to a PostgreSQL
   # range literal and needs nothing from us.
@@ -254,7 +245,7 @@ module ActiveRecord::Filter::PredicateBuilderExtension
   # literal", so it is cast to the range's element type.
   def range_from_value(column, value)
     return value if value.is_a?(::Range)
-    return range_from_hash(column, value) if range_hash?(value)
+    return range_from_hash(column, value) if value.is_a?(Hash)
 
     element_type = table.send(:klass).lease_connection.type_to_sql(range_type(column).subtype.type)
 
@@ -272,6 +263,14 @@ module ActiveRecord::Filter::PredicateBuilderExtension
   # separately rather than interpolating them into a range literal.
   def range_from_hash(column, value)
     hash = value.transform_keys { |key| key.to_s }
+
+    unknown = hash.keys - RANGE_KEYS
+    if unknown.any? || hash.empty?
+      raise ActiveRecord::UnkownFilterError.new(
+        "Unknown range bound #{unknown.first.inspect} for #{column.name}. " \
+        "Expected one or two of #{RANGE_KEYS.map(&:inspect).join(', ')}."
+      )
+    end
 
     begin_key = range_bound_key(hash, RANGE_BEGIN_KEYS, column)
     end_key   = range_bound_key(hash, RANGE_END_KEYS, column)
@@ -328,7 +327,7 @@ module ActiveRecord::Filter::PredicateBuilderExtension
       when :geometry
         Arel::Nodes::NamedFunction.new('ST_Equals', [attribute, value])
       else
-        if range_column?(column) && range_hash?(value)
+        if range_column?(column) && value.is_a?(Hash)
           attribute.eq(range_from_hash(column, value))
         else
           attribute.eq(value)
