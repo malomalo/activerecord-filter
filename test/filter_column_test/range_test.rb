@@ -7,6 +7,7 @@ class RangeColumnFilterTest < ActiveSupport::TestCase
       t.tsrange   "career_period"
       t.daterange "season"
       t.int4range "jersey_numbers"
+      t.string    "name"
     end
   end
 
@@ -284,6 +285,48 @@ class RangeColumnFilterTest < ActiveSupport::TestCase
       Player.filter(career_period: {not_overlaps: bounds}).to_sql,
       "NOT (" + overlaps + ")"
     )
+  end
+
+  # PostgreSQL's positional operators, from malomalo/arel-extensions#16. They
+  # say where two ranges sit relative to one another, which contains/overlaps
+  # cannot express.
+  test "positional operators" do
+    {
+      strictly_left_of:    '<<',
+      strictly_right_of:   '>>',
+      not_extend_right_of: '&<',
+      not_extend_left_of:  '&>',
+      adjacent_to:         '-|-'
+    }.each do |predicate, operator|
+      query = Player.filter(career_period: {predicate => {begin: '2026-01-01', end_before: '2026-06-30'}})
+
+      assert_sql(<<-SQL, query)
+        SELECT players.*
+        FROM players
+        WHERE players.career_period #{operator} '[2026-01-01 00:00:00,2026-06-30 00:00:00)'
+      SQL
+
+      query.to_a
+    end
+  end
+
+  test "positional operators take a Ruby Range" do
+    query = Player.filter(jersey_numbers: {adjacent_to: 5...10})
+
+    assert_sql(<<-SQL, query)
+      SELECT players.*
+      FROM players
+      WHERE players.jersey_numbers -|- '[5,10)'
+    SQL
+    query.to_a
+  end
+
+  # They compare two ranges, so there is nothing they could mean elsewhere.
+  test "a positional operator on a non-range column raises" do
+    error = assert_raises(RuntimeError) do
+      Player.filter(name: {adjacent_to: {begin: 1, end: 3}}).to_sql
+    end
+    assert_match(/Not Supported: adjacent_to on column "name"/, error.message)
   end
 
 end

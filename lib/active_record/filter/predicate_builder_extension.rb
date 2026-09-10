@@ -283,6 +283,16 @@ module ActiveRecord::Filter::PredicateBuilderExtension
       else
         attribute.not_overlaps(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
       end
+    # PostgreSQL's positional range operators. Unlike contains/overlaps these
+    # only mean something between two ranges, so there is no non-range arm —
+    # asking for one on any other column is the same mistake as an unknown
+    # predicate.
+    when *RANGE_POSITION_PREDICATES
+      unless range_column?(column)
+        raise "Not Supported: #{key.to_sym} on column \"#{column.name}\" of type #{column.type}"
+      end
+
+      attribute.public_send(key.to_sym, range_from_value(column, value))
     when :ts_match
       if value.is_a?(Array)
         attribute.ts_query(*value)

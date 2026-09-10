@@ -21,6 +21,16 @@ module ActiveRecord::Filter
     RANGE_END_KEYS   = { 'end' => false, 'end_before' => true }.freeze
     RANGE_KEYS = (RANGE_BEGIN_KEYS.keys + RANGE_END_KEYS.keys).freeze
 
+    # PostgreSQL's positional range operators, whose filter keys are the same as
+    # the arel-extensions predication names they call.
+    RANGE_POSITION_PREDICATES = %i[
+      strictly_left_of
+      strictly_right_of
+      not_extend_right_of
+      not_extend_left_of
+      adjacent_to
+    ].freeze
+
     # ActiveRecord models every PostgreSQL range column with OID::Range, so ask it
     # rather than keeping a list of range type names. This also covers range types
     # declared with `CREATE TYPE ... AS RANGE`, which a hardcoded list would miss.

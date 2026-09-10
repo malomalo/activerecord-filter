@@ -5,9 +5,11 @@
 ### Added
 - Filtering on PostgreSQL range columns (`int4range`, `int8range`, `numrange`,
   `tsrange`, `tstzrange`, `daterange`) with the `contains` (`@>`), `overlaps`
-  (`&&`) and `contained_by` (`<@`) operators. The operand is either a single
-  point or a range — a Ruby Range, or a Hash naming its bounds, where
-  inclusivity is part of the key: `{begin:, end:}` is `[a,b]`,
+  (`&&`), `not_overlaps`, `contained_by` (`<@`), `eq`, `neq` and the positional
+  `strictly_left_of` (`<<`), `strictly_right_of` (`>>`), `not_extend_right_of`
+  (`&<`), `not_extend_left_of` (`&>`) and `adjacent_to` (`-|-`) operators. The
+  operand is either a single point or a range — a Ruby Range, or a Hash naming
+  its bounds, where inclusivity is part of the key: `{begin:, end:}` is `[a,b]`,
   `{begin:, end_before:}` is `[a,b)`, `{begin_after:, end:}` is `(a,b]` and
   `{begin_after:, end_before:}` is `(a,b)`. An omitted bound is unbounded. See
   the README for the full syntax.

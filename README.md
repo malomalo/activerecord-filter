@@ -161,6 +161,11 @@ Player.filter(career_period: {contained_by: {begin: '2000-01-01', end: '2030-01-
 | `contained_by` | `<@` | a range |
 | `eq` | `=` | a range |
 | `neq` / `not` / `not_equal` | `!=` | a range |
+| `strictly_left_of` | `<<` | a range |
+| `strictly_right_of` | `>>` | a range |
+| `not_extend_right_of` | `&<` | a range |
+| `not_extend_left_of` | `&>` | a range |
+| `adjacent_to` | `-|-` | a range |
 
 A **point** is a single value. It is cast to the range's element type, which is
 what PostgreSQL requires on the right of `@>`.
@@ -178,6 +183,13 @@ including the two a Ruby Range cannot express:
 | `{begin: 1, end_before: 3}` | `[1,3)` | 1, 2 |
 | `{begin_after: 1, end: 3}` | `(1,3]` | 2, 3 |
 | `{begin_after: 1, end_before: 3}` | `(1,3)` | 2 |
+
+The last five ask where two ranges sit relative to one another, which the
+containment operators cannot express. `<<` and `>>` mean every element is lower
+(or higher) with no overlap; `&<` asks whether the range stops at or before the
+other's upper bound and `&>` whether it starts at or after the other's lower
+bound; `-|-` is true when the two abut, with no gap and no overlap. They compare
+two ranges, so using one on any other column raises.
 
 An omitted bound is an unbounded end:
 
