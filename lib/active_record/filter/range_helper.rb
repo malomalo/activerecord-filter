@@ -28,10 +28,12 @@ module ActiveRecord::Filter
       !!range_type(column)
     end
 
+    # Via the model rather than `column.cast_type`: Column#cast_type only exists
+    # from Rails 8.1, and this gem supports 8.0.
     def range_type(column)
       return nil unless defined?(ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Range)
 
-      type = column.send(:cast_type)
+      type = table.send(:klass).type_for_attribute(column.name)
       type.is_a?(ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Range) ? type : nil
     end
 
