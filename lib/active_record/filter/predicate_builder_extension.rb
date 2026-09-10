@@ -172,7 +172,9 @@ module ActiveRecord::Filter::PredicateBuilderExtension
       end
     end
     
-    if value.is_a?(Hash)
+    if ActiveRecord::Filter::RangeExtension.applies_to?(column) && ActiveRecord::Filter::RangeExtension.range_hash?(value)
+      attribute.eq(ActiveRecord::Filter::RangeExtension.build_range(column, value))
+    elsif value.is_a?(Hash)
       nodes = value.map do |subkey, subvalue|
         expand_filter_for_arel_attribute(column, attribute, subkey, subvalue)
       end
@@ -216,16 +218,28 @@ module ActiveRecord::Filter::PredicateBuilderExtension
       when :geometry
         Arel::Nodes::NamedFunction.new('ST_Contains', [attribute, value])
       else
-        attribute.contains(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
+        if ActiveRecord::Filter::RangeExtension.applies_to?(column)
+          attribute.contains(ActiveRecord::Filter::RangeExtension.build_operand(column, value))
+        else
+          attribute.contains(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
+        end
       end
     when :contained_by
-      attribute.contained_by(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
+      if ActiveRecord::Filter::RangeExtension.applies_to?(column)
+        attribute.contained_by(ActiveRecord::Filter::RangeExtension.build_operand(column, value))
+      else
+        attribute.contained_by(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
+      end
     when :equal_to, :eq
       case column.type
       when :geometry
         Arel::Nodes::NamedFunction.new('ST_Equals', [attribute, value])
       else
-        attribute.eq(value)
+        if ActiveRecord::Filter::RangeExtension.applies_to?(column) && ActiveRecord::Filter::RangeExtension.range_hash?(value)
+          attribute.eq(ActiveRecord::Filter::RangeExtension.build_range(column, value))
+        else
+          attribute.eq(value)
+        end
       end
     when :excludes
       attribute.excludes(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
@@ -260,7 +274,11 @@ module ActiveRecord::Filter::PredicateBuilderExtension
       in :geometry
         attribute.overlaps(value)
       else
-        attribute.overlaps(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
+        if ActiveRecord::Filter::RangeExtension.applies_to?(column)
+          attribute.overlaps(ActiveRecord::Filter::RangeExtension.build_operand(column, value))
+        else
+          attribute.overlaps(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
+        end
       end
     when :not_overlaps
       attribute.not_overlaps(value)

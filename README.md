@@ -128,6 +128,59 @@ Property.filter("metadata.key": { eq: 'value' }).to_sql
 # => "...WHERE "properties"."metadata" #> array['key'] = 'value'..."
 ```
 
+Date and time ranges
+--------------------
+
+PostgreSQL date/time range columns (`tsrange`, `tstzrange`, `daterange`) can be
+filtered with operators that mirror Ruby/PostgreSQL range semantics. Given a
+`career_period` range on `Player`:
+
+```ruby
+# @> — does the range contain this instant?
+Player.filter(career_period: {contains: '2026-06-15'}).to_sql
+# => "... WHERE players.career_period @> CAST('2026-06-15' AS timestamp) ..."
+
+# @> — does the range contain this whole range?
+Player.filter(career_period: {contains: {from: '2026-01-01', to: '2026-12-31'}}).to_sql
+# => "... WHERE players.career_period @> tsrange('2026-01-01', '2026-12-31') ..."
+
+# && — do the two ranges overlap?
+Player.filter(career_period: {overlaps: {from: '2026-01-01', to: '2026-06-30'}}).to_sql
+# => "... WHERE players.career_period && tsrange('2026-01-01', '2026-06-30') ..."
+
+# <@ — is the range contained by this one?
+Player.filter(career_period: {contained_by: {from: '2000-01-01', to: '2030-01-01'}}).to_sql
+# => "... WHERE players.career_period <@ tsrange('2000-01-01', '2030-01-01') ..."
+```
+
+| Operator | SQL | Operand |
+| --- | --- | --- |
+| `contains` | `@>` | a single point, or a range |
+| `overlaps` | `&&` | a range |
+| `contained_by` | `<@` | a range |
+| `eq` / a bare Hash | `=` | a range |
+
+A **point** is a date/time literal. It is cast to the range's element type,
+which is what PostgreSQL requires on the right of `@>`.
+
+A **range** is a Hash of `{from:, to:}` — the bounds `lower`/`upper` are also
+accepted — where each bound is a date/time literal. A missing or `nil` bound is
+unbounded (`NULL`), and an optional `bounds` key sets the inclusivity string
+PostgreSQL takes as the third `*range()` argument (`'[)'` — the default —
+`'[]'`, `'()'` or `'(]'`):
+
+```ruby
+Player.filter(career_period: {overlaps: {from: '2026-01-01'}}).to_sql           # unbounded upper
+Player.filter(career_period: {overlaps: {from: '2026-01-01', to: '2026-12-31', bounds: '[]'}}).to_sql
+```
+
+A bare range Hash is range equality:
+
+```ruby
+Player.filter(career_period: {from: '2026-01-01', to: '2026-12-31'}).to_sql
+# => "... WHERE players.career_period = tsrange('2026-01-01', '2026-12-31') ..."
+```
+
 It can also filter across associations. Any association (`belongs_to`,
 `has_many`, `has_one`, `has_and_belongs_to_many`, `has_many :through`) can be
 nested, and the join is added for you:
