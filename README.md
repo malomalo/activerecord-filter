@@ -128,12 +128,12 @@ Property.filter("metadata.key": { eq: 'value' }).to_sql
 # => "...WHERE "properties"."metadata" #> array['key'] = 'value'..."
 ```
 
-Date and time ranges
---------------------
+Range columns
+-------------
 
-PostgreSQL date/time range columns (`tsrange`, `tstzrange`, `daterange`) can be
-filtered with operators that mirror Ruby/PostgreSQL range semantics. Given a
-`career_period` range on `Player`:
+PostgreSQL range columns (`int4range`, `int8range`, `numrange`, `tsrange`,
+`tstzrange`, `daterange`) can be filtered with operators that mirror
+Ruby/PostgreSQL range semantics. Given a `career_period` range on `Player`:
 
 ```ruby
 # @> — does the range contain this instant?
@@ -141,16 +141,16 @@ Player.filter(career_period: {contains: '2026-06-15'}).to_sql
 # => "... WHERE players.career_period @> CAST('2026-06-15' AS timestamp) ..."
 
 # @> — does the range contain this whole range?
-Player.filter(career_period: {contains: {from: '2026-01-01', to: '2026-12-31'}}).to_sql
-# => "... WHERE players.career_period @> '[2026-01-01 00:00:00,2026-12-31 00:00:00)' ..."
+Player.filter(career_period: {contains: {begin: '2026-01-01', end: '2026-12-31'}}).to_sql
+# => "... WHERE players.career_period @> '[2026-01-01 00:00:00,2026-12-31 00:00:00]' ..."
 
 # && — do the two ranges overlap?
-Player.filter(career_period: {overlaps: {from: '2026-01-01', to: '2026-06-30'}}).to_sql
+Player.filter(career_period: {overlaps: {begin: '2026-01-01', end_before: '2026-06-30'}}).to_sql
 # => "... WHERE players.career_period && '[2026-01-01 00:00:00,2026-06-30 00:00:00)' ..."
 
 # <@ — is the range contained by this one?
-Player.filter(career_period: {contained_by: {from: '2000-01-01', to: '2030-01-01'}}).to_sql
-# => "... WHERE players.career_period <@ '[2000-01-01 00:00:00,2030-01-01 00:00:00)' ..."
+Player.filter(career_period: {contained_by: {begin: '2000-01-01', end: '2030-01-01'}}).to_sql
+# => "... WHERE players.career_period <@ '[2000-01-01 00:00:00,2030-01-01 00:00:00]' ..."
 ```
 
 | Operator | SQL | Operand |
@@ -160,36 +160,40 @@ Player.filter(career_period: {contained_by: {from: '2000-01-01', to: '2030-01-01
 | `contained_by` | `<@` | a range |
 | `eq` / a bare Hash | `=` | a range |
 
-A **point** is a date/time literal. It is cast to the range's element type,
-which is what PostgreSQL requires on the right of `@>`.
+A **point** is a single value. It is cast to the range's element type, which is
+what PostgreSQL requires on the right of `@>`.
 
-A **range** is a Hash of `{from:, to:}` — the bounds `lower`/`upper` are also
-accepted — where each bound is a date/time literal. A missing or `nil` bound is
-an unbounded end, and an optional `bounds` key picks the upper bound's
-inclusivity: `'[)'` (the default, matching PostgreSQL's own) or `'[]'`.
+A **range** is either a Ruby Range or a Hash naming its bounds. Whether a bound
+is inclusive is part of the key: `begin`/`end` include it, `begin_after`/
+`end_before` exclude it. That covers all four of PostgreSQL's combinations,
+including the two a Ruby Range cannot express:
+
+| Filter value | PostgreSQL | Matches |
+| --- | --- | --- |
+| `1..3` | `[1,3]` | 1, 2, 3 |
+| `1...3` | `[1,3)` | 1, 2 |
+| `{begin: 1, end: 3}` | `[1,3]` | 1, 2, 3 |
+| `{begin: 1, end_before: 3}` | `[1,3)` | 1, 2 |
+| `{begin_after: 1, end: 3}` | `(1,3]` | 2, 3 |
+| `{begin_after: 1, end_before: 3}` | `(1,3)` | 2 |
+
+An omitted bound is an unbounded end:
 
 ```ruby
-Player.filter(career_period: {overlaps: {from: '2026-01-01'}}).to_sql           # unbounded upper
-Player.filter(career_period: {overlaps: {from: '2026-01-01', to: '2026-12-31', bounds: '[]'}}).to_sql
+Player.filter(career_period: {overlaps: {begin: '2026-01-01'}})   # unbounded upper
+Player.filter(career_period: {overlaps: {end_before: '2026-01-01'}})  # unbounded lower
 ```
 
-The Hash is turned into a Ruby Range, which ActiveRecord serializes through the
-column's own range type — so a Ruby Range works directly too:
-
-```ruby
-Player.filter(career_period: {contains: Time.utc(2026, 1, 1)...Time.utc(2026, 12, 31)})
-```
-
-That is also why only two `bounds` are available: PostgreSQL's exclusive lower
-bounds (`'()'` and `'(]'`) have no Ruby Range equivalent, and asking for one
-raises `ActiveRecord::UnkownFilterError` rather than silently widening the range.
+Naming the same end twice — `{begin: 1, begin_after: 2}` — raises
+`ActiveRecord::UnkownFilterError`.
 
 A bare range Hash is range equality:
 
 ```ruby
-Player.filter(career_period: {from: '2026-01-01', to: '2026-12-31'}).to_sql
+Player.filter(career_period: {begin: '2026-01-01', end_before: '2026-12-31'}).to_sql
 # => "... WHERE players.career_period = '[2026-01-01 00:00:00,2026-12-31 00:00:00)' ..."
 ```
+
 
 It can also filter across associations. Any association (`belongs_to`,
 `has_many`, `has_one`, `has_and_belongs_to_many`, `has_many :through`) can be

@@ -214,37 +214,38 @@ module ActiveRecord::Filter::PredicateBuilderExtension
   # Range columns, mapped to the element type each range is over. Used to cast
   # a point operand; a Ruby Range operand casts itself through the column type.
   RANGE_TYPES = {
+    int4range: 'integer',
+    int8range: 'bigint',
+    numrange:  'numeric',
     tsrange:   'timestamp',
     tstzrange: 'timestamptz',
     daterange: 'date'
   }.freeze
 
-  # Keys that identify a range literal Hash. `bounds` is the optional
-  # inclusivity string; see RANGE_BOUNDS for the ones a Ruby Range can express.
-  RANGE_LOWER_KEYS = %w[from lower begin start].freeze
-  RANGE_UPPER_KEYS = %w[to upper end finish].freeze
-  RANGE_BOUNDS_KEY = 'bounds'
-  RANGE_KEYS = (RANGE_LOWER_KEYS + RANGE_UPPER_KEYS + [RANGE_BOUNDS_KEY]).freeze
-
-  # Bounds strings a Ruby Range can express, mapped to whether the upper bound
-  # is inclusive. PostgreSQL's exclusive lower bounds ('(]' and '()') have no
-  # Ruby equivalent, so they are rejected rather than silently widened.
-  RANGE_BOUNDS = { '[)' => false, '[]' => true }.freeze
-  RANGE_DEFAULT_BOUNDS = '[)'
+  # Keys that identify a range Hash, mapped to whether the bound they name is
+  # exclusive. Putting the exclusivity in the key means every one of
+  # PostgreSQL's four bound combinations can be written, which a `bounds`
+  # string paired with a Ruby Range could not do.
+  #
+  #   {begin: 1,       end: 3}         =>  [1,3]
+  #   {begin: 1,       end_before: 3}  =>  [1,3)
+  #   {begin_after: 1, end: 3}         =>  (1,3]
+  #   {begin_after: 1, end_before: 3}  =>  (1,3)
+  RANGE_BEGIN_KEYS = { 'begin' => false, 'begin_after' => true }.freeze
+  RANGE_END_KEYS   = { 'end' => false, 'end_before' => true }.freeze
+  RANGE_KEYS = (RANGE_BEGIN_KEYS.keys + RANGE_END_KEYS.keys).freeze
 
   def range_column?(column)
     RANGE_TYPES.key?(column.type)
   end
 
-  # True when the Hash describes a range literal (`{from:, to:}`) rather than a
-  # Hash of predicates (`{overlaps: ...}`). Every key must be a recognised range
-  # key and at least one bound must be present, so a predicate Hash can never be
-  # mistaken for a range.
+  # True when the Hash describes a range (`{begin:, end:}`) rather than a Hash
+  # of predicates (`{overlaps: ...}`). Every key must be a bound key, and none
+  # of them is a predicate name, so the two can never be confused.
   def range_hash?(value)
     return false unless value.is_a?(Hash) && !value.empty?
 
-    keys = value.keys.map { |key| key.to_s }
-    (keys - RANGE_KEYS).empty? && keys.any? { |key| RANGE_LOWER_KEYS.include?(key) || RANGE_UPPER_KEYS.include?(key) }
+    (value.keys.map { |key| key.to_s } - RANGE_KEYS).empty?
   end
 
   # The right-hand operand for a range predicate. ActiveRecord types a range
@@ -263,28 +264,45 @@ module ActiveRecord::Filter::PredicateBuilderExtension
     ])
   end
 
-  # A Ruby Range from a `{from:, to:, bounds:}` Hash. A missing or nil bound is
-  # an unbounded end. `bounds` defaults to PostgreSQL's own '[)'.
+  # A `{begin:, end:}` Hash becomes a Ruby Range, which ActiveRecord serializes
+  # through the column's own range type. An absent bound is an unbounded end.
+  #
+  # Ruby has no exclusive *lower* bound, so `begin_after` is the one shape a
+  # Range cannot carry; those fall back to PostgreSQL's own
+  # `*range(lower, upper, bounds)` constructor, which quotes each bound
+  # separately rather than interpolating them into a range literal.
   def range_from_hash(column, value)
     hash = value.transform_keys { |key| key.to_s }
-    bounds = hash.fetch(RANGE_BOUNDS_KEY, RANGE_DEFAULT_BOUNDS).to_s
 
-    unless RANGE_BOUNDS.key?(bounds)
-      raise ActiveRecord::UnkownFilterError.new(
-        "Unsupported bounds #{bounds.inspect} for #{column.name}. A Ruby Range cannot express an " \
-        "exclusive lower bound, so only #{RANGE_BOUNDS.keys.map(&:inspect).join(' and ')} are available."
-      )
+    begin_key = range_bound_key(hash, RANGE_BEGIN_KEYS, column)
+    end_key   = range_bound_key(hash, RANGE_END_KEYS, column)
+
+    lower = begin_key && hash[begin_key]
+    upper = end_key && hash[end_key]
+
+    exclude_begin = begin_key ? RANGE_BEGIN_KEYS[begin_key] : false
+    exclude_end   = end_key   ? RANGE_END_KEYS[end_key]     : false
+
+    if exclude_begin
+      Arel::Nodes::NamedFunction.new(column.type.to_s, [
+        Arel::Nodes.build_quoted(lower),
+        Arel::Nodes.build_quoted(upper),
+        Arel::Nodes.build_quoted(exclude_end ? '()' : '(]')
+      ])
+    else
+      exclude_end ? (lower...upper) : (lower..upper)
     end
-
-    lower = range_bound(hash, RANGE_LOWER_KEYS)
-    upper = range_bound(hash, RANGE_UPPER_KEYS)
-
-    RANGE_BOUNDS[bounds] ? (lower..upper) : (lower...upper)
   end
 
-  def range_bound(hash, keys)
-    key = keys.find { |candidate| hash.key?(candidate) }
-    key && hash[key]
+  # Each end may be named only once — `{begin: 1, begin_after: 2}` is a
+  # contradiction rather than a precedence question.
+  def range_bound_key(hash, keys, column)
+    present = keys.keys.select { |key| hash.key?(key) }
+    return present.first if present.size <= 1
+
+    raise ActiveRecord::UnkownFilterError.new(
+      "Conflicting range bounds #{present.map(&:inspect).join(' and ')} for #{column.name}."
+    )
   end
 
   def expand_filter_for_arel_attribute(column, attribute, key, value)
