@@ -125,16 +125,6 @@ class RangeColumnFilterTest < ActiveSupport::TestCase
     SQL
   end
 
-  # A bare range Hash (no predicate key) is range equality.
-  test "a bare range hash is an equality check" do
-    query = Player.filter(career_period: {begin: '2000-01-01', end_before: '2010-01-01'})
-    assert_sql(<<-SQL, query)
-      SELECT players.*
-      FROM players
-      WHERE players.career_period = '[2000-01-01 00:00:00,2010-01-01 00:00:00)'
-    SQL
-  end
-
   test "eq with a range hash is range equality" do
     query = Player.filter(career_period: {eq: {begin: '2015-01-01', end_before: '2025-01-01'}})
     assert_sql(<<-SQL, query)

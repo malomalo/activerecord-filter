@@ -158,7 +158,7 @@ Player.filter(career_period: {contained_by: {begin: '2000-01-01', end: '2030-01-
 | `contains` | `@>` | a single point, or a range |
 | `overlaps` | `&&` | a range |
 | `contained_by` | `<@` | a range |
-| `eq` / a bare Hash | `=` | a range |
+| `eq` | `=` | a range |
 
 A **point** is a single value. It is cast to the range's element type, which is
 what PostgreSQL requires on the right of `@>`.
@@ -187,10 +187,11 @@ Player.filter(career_period: {overlaps: {end_before: '2026-01-01'}})  # unbounde
 Naming the same end twice — `{begin: 1, begin_after: 2}` — raises
 `ActiveRecord::UnkownFilterError`.
 
-A bare range Hash is range equality:
+Range equality is written with `eq`, not as a bare value — a Hash filter value
+is always read as predicates:
 
 ```ruby
-Player.filter(career_period: {begin: '2026-01-01', end_before: '2026-12-31'}).to_sql
+Player.filter(career_period: {eq: {begin: '2026-01-01', end_before: '2026-12-31'}}).to_sql
 # => "... WHERE players.career_period = '[2026-01-01 00:00:00,2026-12-31 00:00:00)' ..."
 ```
 

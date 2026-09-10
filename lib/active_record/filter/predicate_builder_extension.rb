@@ -172,9 +172,7 @@ module ActiveRecord::Filter::PredicateBuilderExtension
       end
     end
     
-    if range_column?(column) && range_hash?(value)
-      attribute.eq(range_from_hash(column, value))
-    elsif value.is_a?(Hash)
+    if value.is_a?(Hash)
       nodes = value.map do |subkey, subvalue|
         expand_filter_for_arel_attribute(column, attribute, subkey, subvalue)
       end
@@ -228,13 +226,13 @@ module ActiveRecord::Filter::PredicateBuilderExtension
   # rather than keeping a list of range type names. This also covers range types
   # declared with `CREATE TYPE ... AS RANGE`, which a hardcoded list would miss.
   def range_column?(column)
-    !range_type(column).nil?
+    !!range_type(column)
   end
 
   def range_type(column)
     return nil unless defined?(ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Range)
 
-    type = table.send(:klass).type_for_attribute(column.name)
+    type = column.send(:cast_type)
     type.is_a?(ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Range) ? type : nil
   end
 
