@@ -159,6 +159,7 @@ Player.filter(career_period: {contained_by: {begin: '2000-01-01', end: '2030-01-
 | `overlaps` | `&&` | a range |
 | `contained_by` | `<@` | a range |
 | `eq` | `=` | a range |
+| `neq` / `not` / `not_equal` | `!=` | a range |
 
 A **point** is a single value. It is cast to the range's element type, which is
 what PostgreSQL requires on the right of `@>`.

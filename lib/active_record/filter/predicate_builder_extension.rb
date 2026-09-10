@@ -260,7 +260,11 @@ module ActiveRecord::Filter::PredicateBuilderExtension
     when :ilike
       attribute.matches(value, nil, false)
     when :not, :not_equal, :neq
-      attribute.not_eq(value)
+      if range_column?(column) && value.is_a?(Hash)
+        attribute.not_eq(range_from_hash(column, value))
+      else
+        attribute.not_eq(value)
+      end
     when :not_in
       attribute.not_in(value)
     when :overlaps

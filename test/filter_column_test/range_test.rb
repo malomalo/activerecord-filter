@@ -246,4 +246,22 @@ class RangeColumnFilterTest < ActiveSupport::TestCase
     Player.reset_column_information
   end
 
+  # neq is the mirror of eq, so it takes a range the same way.
+  test "neq with a range hash is range inequality" do
+    query = Player.filter(career_period: {neq: {begin: '2015-01-01', end_before: '2025-01-01'}})
+    assert_sql(<<-SQL, query)
+      SELECT players.*
+      FROM players
+      WHERE players.career_period != '[2015-01-01 00:00:00,2025-01-01 00:00:00)'
+    SQL
+    query.to_a
+  end
+
+  test "not and not_equal are aliases for neq" do
+    expected = Player.filter(career_period: {neq: {begin: '2015-01-01', end: '2025-01-01'}}).to_sql
+
+    assert_equal expected, Player.filter(career_period: {not: {begin: '2015-01-01', end: '2025-01-01'}}).to_sql
+    assert_equal expected, Player.filter(career_period: {not_equal: {begin: '2015-01-01', end: '2025-01-01'}}).to_sql
+  end
+
 end
