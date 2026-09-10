@@ -172,8 +172,8 @@ module ActiveRecord::Filter::PredicateBuilderExtension
       end
     end
     
-    if ActiveRecord::Filter::RangeExtension.applies_to?(column) && ActiveRecord::Filter::RangeExtension.range_hash?(value)
-      attribute.eq(ActiveRecord::Filter::RangeExtension.build_range(column, value))
+    if range_column?(column) && range_hash?(value)
+      attribute.eq(range_literal(column, value))
     elsif value.is_a?(Hash)
       nodes = value.map do |subkey, subvalue|
         expand_filter_for_arel_attribute(column, attribute, subkey, subvalue)
@@ -211,6 +211,69 @@ module ActiveRecord::Filter::PredicateBuilderExtension
     end
   end
   
+  # Range columns, mapped to the element type each range is over.
+  RANGE_TYPES = {
+    tsrange:   'timestamp',
+    tstzrange: 'timestamptz',
+    daterange: 'date'
+  }.freeze
+
+  # Keys that identify a range literal Hash. `bounds` is the optional
+  # inclusivity string PostgreSQL takes as the third `*range()` argument
+  # ('[)', '[]', '()', '(]'); when omitted PostgreSQL's default '[)' stands.
+  RANGE_LOWER_KEYS = %w[from lower begin start].freeze
+  RANGE_UPPER_KEYS = %w[to upper end finish].freeze
+  RANGE_BOUNDS_KEY = 'bounds'
+  RANGE_KEYS = (RANGE_LOWER_KEYS + RANGE_UPPER_KEYS + [RANGE_BOUNDS_KEY]).freeze
+
+  def range_column?(column)
+    RANGE_TYPES.key?(column.type)
+  end
+
+  # True when the Hash describes a range literal (`{from:, to:}`) rather than a
+  # Hash of predicates (`{overlaps: ...}`). Every key must be a recognised range
+  # key and at least one bound must be present, so a predicate Hash can never be
+  # mistaken for a range.
+  def range_hash?(value)
+    return false unless value.is_a?(Hash) && !value.empty?
+
+    keys = value.keys.map { |key| key.to_s }
+    (keys - RANGE_KEYS).empty? && keys.any? { |key| RANGE_LOWER_KEYS.include?(key) || RANGE_UPPER_KEYS.include?(key) }
+  end
+
+  # The right-hand operand for a range predicate. A range Hash becomes a
+  # `*range(lower, upper[, bounds])` constructor; anything else is a single
+  # point, cast to the range's element type so `career_period @> '2026-06-15'`
+  # is well typed (PostgreSQL rejects a bare unknown-typed literal on the right
+  # of @> as a malformed range literal).
+  def range_from_value(column, value)
+    return range_literal(column, value) if range_hash?(value)
+
+    Arel::Nodes::NamedFunction.new('CAST', [
+      Arel::Nodes::As.new(Arel::Nodes.build_quoted(value), Arel::Nodes::SqlLiteral.new(RANGE_TYPES.fetch(column.type)))
+    ])
+  end
+
+  # A `*range(lower, upper[, bounds])` constructor node. A missing or nil bound
+  # is an unbounded end (SQL NULL); the constructor's own argument types cast
+  # each literal, so no explicit cast is needed on a bound.
+  def range_literal(column, value)
+    hash = value.transform_keys { |key| key.to_s }
+
+    arguments = [
+      Arel::Nodes.build_quoted(range_bound(hash, RANGE_LOWER_KEYS)),
+      Arel::Nodes.build_quoted(range_bound(hash, RANGE_UPPER_KEYS))
+    ]
+    arguments << Arel::Nodes.build_quoted(hash[RANGE_BOUNDS_KEY]) if hash.key?(RANGE_BOUNDS_KEY)
+
+    Arel::Nodes::NamedFunction.new(column.type.to_s, arguments)
+  end
+
+  def range_bound(hash, keys)
+    key = keys.find { |candidate| hash.key?(candidate) }
+    key && hash[key]
+  end
+
   def expand_filter_for_arel_attribute(column, attribute, key, value)
     case key.to_sym
     when :contains
@@ -218,15 +281,15 @@ module ActiveRecord::Filter::PredicateBuilderExtension
       when :geometry
         Arel::Nodes::NamedFunction.new('ST_Contains', [attribute, value])
       else
-        if ActiveRecord::Filter::RangeExtension.applies_to?(column)
-          attribute.contains(ActiveRecord::Filter::RangeExtension.build_operand(column, value))
+        if range_column?(column)
+          attribute.contains(range_from_value(column, value))
         else
           attribute.contains(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
         end
       end
     when :contained_by
-      if ActiveRecord::Filter::RangeExtension.applies_to?(column)
-        attribute.contained_by(ActiveRecord::Filter::RangeExtension.build_operand(column, value))
+      if range_column?(column)
+        attribute.contained_by(range_from_value(column, value))
       else
         attribute.contained_by(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
       end
@@ -235,8 +298,8 @@ module ActiveRecord::Filter::PredicateBuilderExtension
       when :geometry
         Arel::Nodes::NamedFunction.new('ST_Equals', [attribute, value])
       else
-        if ActiveRecord::Filter::RangeExtension.applies_to?(column) && ActiveRecord::Filter::RangeExtension.range_hash?(value)
-          attribute.eq(ActiveRecord::Filter::RangeExtension.build_range(column, value))
+        if range_column?(column) && range_hash?(value)
+          attribute.eq(range_literal(column, value))
         else
           attribute.eq(value)
         end
@@ -274,8 +337,8 @@ module ActiveRecord::Filter::PredicateBuilderExtension
       in :geometry
         attribute.overlaps(value)
       else
-        if ActiveRecord::Filter::RangeExtension.applies_to?(column)
-          attribute.overlaps(ActiveRecord::Filter::RangeExtension.build_operand(column, value))
+        if range_column?(column)
+          attribute.overlaps(range_from_value(column, value))
         else
           attribute.overlaps(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
         end
