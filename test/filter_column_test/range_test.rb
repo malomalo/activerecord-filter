@@ -264,4 +264,26 @@ class RangeColumnFilterTest < ActiveSupport::TestCase
     assert_equal expected, Player.filter(career_period: {not_equal: {begin: '2015-01-01', end: '2025-01-01'}}).to_sql
   end
 
+  # not_overlaps mirrors overlaps. PostgreSQL has no `!&&`, so arel-extensions
+  # renders it as Arel's Not wrapped around the overlap.
+  test "not_overlaps a range" do
+    query = Player.filter(career_period: {not_overlaps: {begin: '2008-01-01', end_before: '2016-01-01'}})
+    assert_sql(<<-SQL, query)
+      SELECT players.*
+      FROM players
+      WHERE NOT (players.career_period && '[2008-01-01 00:00:00,2016-01-01 00:00:00)')
+    SQL
+    query.to_a
+  end
+
+  test "not_overlaps is the negation of overlaps" do
+    bounds = {begin: '2008-01-01', end_before: '2016-01-01'}
+    overlaps = Player.filter(career_period: {overlaps: bounds}).to_sql[/WHERE (.*)/, 1]
+
+    assert_includes(
+      Player.filter(career_period: {not_overlaps: bounds}).to_sql,
+      "NOT (" + overlaps + ")"
+    )
+  end
+
 end

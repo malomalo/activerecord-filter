@@ -157,6 +157,7 @@ Player.filter(career_period: {contained_by: {begin: '2000-01-01', end: '2030-01-
 | --- | --- | --- |
 | `contains` | `@>` | a single point, or a range |
 | `overlaps` | `&&` | a range |
+| `not_overlaps` | `NOT (… && …)` | a range |
 | `contained_by` | `<@` | a range |
 | `eq` | `=` | a range |
 | `neq` / `not` / `not_equal` | `!=` | a range |

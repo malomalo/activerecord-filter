@@ -276,7 +276,13 @@ module ActiveRecord::Filter::PredicateBuilderExtension
         attribute.overlaps(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
       end
     when :not_overlaps
-      attribute.not_overlaps(value)
+      if column.type == :geometry
+        attribute.not_overlaps(value)
+      elsif range_column?(column)
+        attribute.not_overlaps(range_from_value(column, value))
+      else
+        attribute.not_overlaps(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
+      end
     when :ts_match
       if value.is_a?(Array)
         attribute.ts_query(*value)
