@@ -9,9 +9,19 @@ class RelativeTimeFilterTest < ActiveSupport::TestCase
       t.datetime "created_at", null: false
       t.date     "opened_on"
     end
+
+    create_table "photos", force: :cascade do |t|
+      t.integer  "property_id"
+      t.datetime "created_at", null: false
+    end
   end
 
   class Property < ActiveRecord::Base
+    has_many :photos
+  end
+
+  class Photo < ActiveRecord::Base
+    belongs_to :property
   end
 
   NOW = Time.utc(2026, 8, 27, 14, 23, 45)
@@ -20,9 +30,11 @@ class RelativeTimeFilterTest < ActiveSupport::TestCase
     @original_zone = Time.zone
     Time.zone = 'UTC'
     travel_to NOW
+    ActiveRecord::Filter::RelativeTime.enable!
   end
 
   teardown do
+    ActiveRecord::Filter::RelativeTime.disable!
     travel_back
     Time.zone = @original_zone
   end
@@ -237,5 +249,32 @@ class RelativeTimeFilterTest < ActiveSupport::TestCase
     assert_raises(ActiveRecord::UnkownFilterError) do
       Property.filter(created_at: {gt: {at: 'now', add: 'a week'}}).to_sql
     end
+  end
+
+  # --- the opt-in itself ---
+
+  test "disabled, a relative value is left to ActiveRecord" do
+    ActiveRecord::Filter::RelativeTime.disable!
+
+    # The guarantee that matters: with the feature off, nothing in this module
+    # touches the value, so upgrading cannot change an existing filter.
+    refute_includes Property.filter(created_at: {gt: "now"}).to_sql, format_time(NOW)
+  end
+
+  test "enable! is idempotent" do
+    ActiveRecord::Filter::RelativeTime.enable!
+    ActiveRecord::Filter::RelativeTime.enable!
+
+    occurrences = ActiveRecord::PredicateBuilder.ancestors.count do |mod|
+      mod == ActiveRecord::Filter::RelativeTime::PredicateBuilderExtension
+    end
+
+    assert_equal 1, occurrences
+  end
+
+  test "the global switch covers filters across associations" do
+    # Nested builders are built from the associated class, so this only works
+    # because enable! patches the shared PredicateBuilder rather than a model.
+    assert_includes Property.filter(photos: {created_at: {gt: "now"}}).to_sql, format_time(NOW)
   end
 end

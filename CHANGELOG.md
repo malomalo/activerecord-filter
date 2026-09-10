@@ -3,11 +3,14 @@
 ## Unreleased
 
 ### Added
-- Relative date/time filtering on `date`/`datetime`/`time`/`timestamp` columns.
-  Values may be the keywords `now`, `today`, `yesterday` and `tomorrow`, or a
-  Hash with an `at` anchor plus any of the `add`, `subtract`, `start_of` and
-  `end_of` operations — e.g. `filter(created_at: {gt: {at: 'now', subtract: '1
-  month', start_of: 'month'}})`. See the README for the full syntax.
+- Opt-in relative date/time filtering on `date`/`datetime`/`time`/`timestamp`
+  columns, enabled with `ActiveRecord::Filter::RelativeTime.enable!` from an
+  initializer. Values may be the keywords `now`, `today`, `yesterday` and
+  `tomorrow`, or a Hash with an `at` anchor plus any of the `add`, `subtract`,
+  `start_of` and `end_of` operations — e.g.
+  `filter(created_at: {gt: {at: 'now', subtract: '1 month', start_of: 'month'}})`.
+  Until `enable!` is called nothing is resolved and filtering is unchanged. See
+  the README for the full syntax.
 
 ## [9.0.0] - 2026-08-27
 
