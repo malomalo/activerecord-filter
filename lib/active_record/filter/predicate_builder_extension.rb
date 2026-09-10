@@ -211,17 +211,6 @@ module ActiveRecord::Filter::PredicateBuilderExtension
     end
   end
   
-  # Range columns, mapped to the element type each range is over. Used to cast
-  # a point operand; a Ruby Range operand casts itself through the column type.
-  RANGE_TYPES = {
-    int4range: 'integer',
-    int8range: 'bigint',
-    numrange:  'numeric',
-    tsrange:   'timestamp',
-    tstzrange: 'timestamptz',
-    daterange: 'date'
-  }.freeze
-
   # Keys that identify a range Hash, mapped to whether the bound they name is
   # exclusive. Putting the exclusivity in the key means every one of
   # PostgreSQL's four bound combinations can be written, which a `bounds`
@@ -235,8 +224,18 @@ module ActiveRecord::Filter::PredicateBuilderExtension
   RANGE_END_KEYS   = { 'end' => false, 'end_before' => true }.freeze
   RANGE_KEYS = (RANGE_BEGIN_KEYS.keys + RANGE_END_KEYS.keys).freeze
 
+  # ActiveRecord models every PostgreSQL range column with OID::Range, so ask it
+  # rather than keeping a list of range type names. This also covers range types
+  # declared with `CREATE TYPE ... AS RANGE`, which a hardcoded list would miss.
   def range_column?(column)
-    RANGE_TYPES.key?(column.type)
+    !range_type(column).nil?
+  end
+
+  def range_type(column)
+    return nil unless defined?(ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Range)
+
+    type = table.send(:klass).type_for_attribute(column.name)
+    type.is_a?(ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Range) ? type : nil
   end
 
   # True when the Hash describes a range (`{begin:, end:}`) rather than a Hash
@@ -259,8 +258,10 @@ module ActiveRecord::Filter::PredicateBuilderExtension
     return value if value.is_a?(::Range)
     return range_from_hash(column, value) if range_hash?(value)
 
+    element_type = table.send(:klass).lease_connection.type_to_sql(range_type(column).subtype.type)
+
     Arel::Nodes::NamedFunction.new('CAST', [
-      Arel::Nodes::As.new(Arel::Nodes.build_quoted(value), Arel::Nodes::SqlLiteral.new(RANGE_TYPES.fetch(column.type)))
+      Arel::Nodes::As.new(Arel::Nodes.build_quoted(value), Arel::Nodes::SqlLiteral.new(element_type))
     ])
   end
 

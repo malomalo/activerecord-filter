@@ -193,4 +193,26 @@ class RangeColumnFilterTest < ActiveSupport::TestCase
     end
   end
 
+  # ActiveRecord models every range column with OID::Range, including types
+  # declared with `CREATE TYPE ... AS RANGE`. A hardcoded list of the built-in
+  # range type names would not have covered this one.
+  test "a user-defined range type is recognised" do
+    connection = ActiveRecord::Base.lease_connection
+    connection.execute("CREATE TYPE textrange AS RANGE (subtype = text)")
+    connection.execute("ALTER TABLE players ADD COLUMN nicknames textrange")
+    Player.reset_column_information
+
+    query = Player.filter(nicknames: {contains: {begin: 'a', end_before: 'm'}})
+    assert_sql(<<-SQL, query)
+      SELECT players.*
+      FROM players
+      WHERE players.nicknames @> '[a,m)'
+    SQL
+    query.to_a
+  ensure
+    connection.execute("ALTER TABLE players DROP COLUMN IF EXISTS nicknames")
+    connection.execute("DROP TYPE IF EXISTS textrange")
+    Player.reset_column_information
+  end
+
 end
