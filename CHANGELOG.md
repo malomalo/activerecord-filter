@@ -7,8 +7,11 @@
   `daterange`) with the `contains` (`@>`), `overlaps` (`&&`) and `contained_by`
   (`<@`) operators. The operand is either a single point (a date/time literal)
   or a range Hash `{from:, to:, bounds:}` — e.g. `filter(career_period:
-  {overlaps: {from: '2026-01-01', to: '2026-06-30'}})`. See the README for the
-  full syntax.
+  {overlaps: {from: '2026-01-01', to: '2026-06-30'}})`, or a Ruby Range. The Hash
+  becomes a Ruby Range, which ActiveRecord serializes through the column's own
+  range type; `bounds` is therefore `'[)'` (the default) or `'[]'`, since
+  PostgreSQL's exclusive lower bounds have no Ruby equivalent. See the README
+  for the full syntax.
 
 ### Security
 - Require `arel-extensions` >= 9.0.1, which fixes a SQL injection in JSON path

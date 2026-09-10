@@ -173,7 +173,7 @@ module ActiveRecord::Filter::PredicateBuilderExtension
     end
     
     if range_column?(column) && range_hash?(value)
-      attribute.eq(range_literal(column, value))
+      attribute.eq(range_from_hash(column, value))
     elsif value.is_a?(Hash)
       nodes = value.map do |subkey, subvalue|
         expand_filter_for_arel_attribute(column, attribute, subkey, subvalue)
@@ -211,7 +211,8 @@ module ActiveRecord::Filter::PredicateBuilderExtension
     end
   end
   
-  # Range columns, mapped to the element type each range is over.
+  # Range columns, mapped to the element type each range is over. Used to cast
+  # a point operand; a Ruby Range operand casts itself through the column type.
   RANGE_TYPES = {
     tsrange:   'timestamp',
     tstzrange: 'timestamptz',
@@ -219,12 +220,17 @@ module ActiveRecord::Filter::PredicateBuilderExtension
   }.freeze
 
   # Keys that identify a range literal Hash. `bounds` is the optional
-  # inclusivity string PostgreSQL takes as the third `*range()` argument
-  # ('[)', '[]', '()', '(]'); when omitted PostgreSQL's default '[)' stands.
+  # inclusivity string; see RANGE_BOUNDS for the ones a Ruby Range can express.
   RANGE_LOWER_KEYS = %w[from lower begin start].freeze
   RANGE_UPPER_KEYS = %w[to upper end finish].freeze
   RANGE_BOUNDS_KEY = 'bounds'
   RANGE_KEYS = (RANGE_LOWER_KEYS + RANGE_UPPER_KEYS + [RANGE_BOUNDS_KEY]).freeze
+
+  # Bounds strings a Ruby Range can express, mapped to whether the upper bound
+  # is inclusive. PostgreSQL's exclusive lower bounds ('(]' and '()') have no
+  # Ruby equivalent, so they are rejected rather than silently widened.
+  RANGE_BOUNDS = { '[)' => false, '[]' => true }.freeze
+  RANGE_DEFAULT_BOUNDS = '[)'
 
   def range_column?(column)
     RANGE_TYPES.key?(column.type)
@@ -241,32 +247,39 @@ module ActiveRecord::Filter::PredicateBuilderExtension
     (keys - RANGE_KEYS).empty? && keys.any? { |key| RANGE_LOWER_KEYS.include?(key) || RANGE_UPPER_KEYS.include?(key) }
   end
 
-  # The right-hand operand for a range predicate. A range Hash becomes a
-  # `*range(lower, upper[, bounds])` constructor; anything else is a single
-  # point, cast to the range's element type so `career_period @> '2026-06-15'`
-  # is well typed (PostgreSQL rejects a bare unknown-typed literal on the right
-  # of @> as a malformed range literal).
+  # The right-hand operand for a range predicate. ActiveRecord types a range
+  # column as OID::Range, so a Ruby Range serializes itself to a PostgreSQL
+  # range literal and needs nothing from us.
+  #
+  # A single point does need help: `career_period @> '2026-06-15'` makes
+  # PostgreSQL read the literal as a range and fail with "malformed range
+  # literal", so it is cast to the range's element type.
   def range_from_value(column, value)
-    return range_literal(column, value) if range_hash?(value)
+    return value if value.is_a?(::Range)
+    return range_from_hash(column, value) if range_hash?(value)
 
     Arel::Nodes::NamedFunction.new('CAST', [
       Arel::Nodes::As.new(Arel::Nodes.build_quoted(value), Arel::Nodes::SqlLiteral.new(RANGE_TYPES.fetch(column.type)))
     ])
   end
 
-  # A `*range(lower, upper[, bounds])` constructor node. A missing or nil bound
-  # is an unbounded end (SQL NULL); the constructor's own argument types cast
-  # each literal, so no explicit cast is needed on a bound.
-  def range_literal(column, value)
+  # A Ruby Range from a `{from:, to:, bounds:}` Hash. A missing or nil bound is
+  # an unbounded end. `bounds` defaults to PostgreSQL's own '[)'.
+  def range_from_hash(column, value)
     hash = value.transform_keys { |key| key.to_s }
+    bounds = hash.fetch(RANGE_BOUNDS_KEY, RANGE_DEFAULT_BOUNDS).to_s
 
-    arguments = [
-      Arel::Nodes.build_quoted(range_bound(hash, RANGE_LOWER_KEYS)),
-      Arel::Nodes.build_quoted(range_bound(hash, RANGE_UPPER_KEYS))
-    ]
-    arguments << Arel::Nodes.build_quoted(hash[RANGE_BOUNDS_KEY]) if hash.key?(RANGE_BOUNDS_KEY)
+    unless RANGE_BOUNDS.key?(bounds)
+      raise ActiveRecord::UnkownFilterError.new(
+        "Unsupported bounds #{bounds.inspect} for #{column.name}. A Ruby Range cannot express an " \
+        "exclusive lower bound, so only #{RANGE_BOUNDS.keys.map(&:inspect).join(' and ')} are available."
+      )
+    end
 
-    Arel::Nodes::NamedFunction.new(column.type.to_s, arguments)
+    lower = range_bound(hash, RANGE_LOWER_KEYS)
+    upper = range_bound(hash, RANGE_UPPER_KEYS)
+
+    RANGE_BOUNDS[bounds] ? (lower..upper) : (lower...upper)
   end
 
   def range_bound(hash, keys)
@@ -299,7 +312,7 @@ module ActiveRecord::Filter::PredicateBuilderExtension
         Arel::Nodes::NamedFunction.new('ST_Equals', [attribute, value])
       else
         if range_column?(column) && range_hash?(value)
-          attribute.eq(range_literal(column, value))
+          attribute.eq(range_from_hash(column, value))
         else
           attribute.eq(value)
         end
