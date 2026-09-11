@@ -27,15 +27,28 @@ module ActiveRecord::Filter
     }.freeze
     RANGE_KEYS = (RANGE_BEGIN_KEYS.keys + RANGE_END_KEYS.keys).freeze
 
-    # PostgreSQL's positional range operators, whose filter keys are the same as
-    # the arel-extensions predication names they call.
-    RANGE_POSITION_PREDICATES = %i[
-      ends_before
-      ends_by
-      starts_after
-      starts_by
-      adjacent_to
-    ].freeze
+    # PostgreSQL's positional range operators, as filter key => the
+    # arel-extensions predication it calls.
+    #
+    # The two vocabularies differ on purpose. arel-extensions names the SQL
+    # operator — `strictly_left_of` is what `<<` is called. A filter key names
+    # the question being asked of the column, and every one of these compares a
+    # single edge of the column's range against a single edge of the operand:
+    #
+    #   ends_before   <<   upper(column) <= lower(operand)
+    #   ends_by       &<   upper(column) <= upper(operand)
+    #   starts_after  >>   lower(column) >= upper(operand)
+    #   starts_by     &>   lower(column) >= lower(operand)
+    #
+    # So the first pair forbid overlap entirely and the second pair constrain
+    # one edge and permit it.
+    RANGE_POSITION_PREDICATES = {
+      ends_before:  :strictly_left_of,
+      ends_by:      :not_extend_right_of,
+      starts_after: :strictly_right_of,
+      starts_by:    :not_extend_left_of,
+      adjacent_to:  :adjacent_to
+    }.freeze
 
     # ActiveRecord models every PostgreSQL range column with OID::Range, so ask it
     # rather than keeping a list of range type names. This also covers range types

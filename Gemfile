@@ -8,6 +8,5 @@ gemspec
 #   #14 contained_by accepts a Ruby Range
 #   #15 not_overlaps exists on Attribute at all
 #   #16 the positional range operators
-#   #17 their rename (branch pinned until merged)
 # Drop this and raise the gemspec floor once a release carries them.
-gem 'arel-extensions', github: 'malomalo/arel-extensions', branch: 'rename-range-position-operators'
+gem 'arel-extensions', github: 'malomalo/arel-extensions', branch: 'master'
