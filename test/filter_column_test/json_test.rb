@@ -58,7 +58,25 @@ class JsonFilterTest < ActiveSupport::TestCase
     assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip)
       SELECT "properties".*
       FROM "properties"
-      WHERE "properties"."metadata"#>'{subkey}' = 'string'
+      WHERE "properties"."metadata" #> array['subkey'] = 'string'
+    SQL
+  end
+  
+  test "::filter json_column.subkey.subkey: {eq: JSON_HASH}" do
+    query = Property.filter("metadata.subkey.nested" => {eq: 'string'})
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip)
+      SELECT "properties".*
+      FROM "properties"
+      WHERE "properties"."metadata" #> array['subkey','nested'] = 'string'
+    SQL
+  end
+  
+  test "::filter json_column.subkey quotes the key (GHSA-75hc-9q9v-9cv2)" do
+    query = Property.filter("metadata.a'} = 'x' OR 1=1 --" => {eq: 'string'})
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip)
+      SELECT "properties".*
+      FROM "properties"
+      WHERE "properties"."metadata" #> array['a''} = ''x'' OR 1=1 --'] = 'string'
     SQL
   end
   

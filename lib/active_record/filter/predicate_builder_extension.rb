@@ -5,6 +5,8 @@ require "active_support/concern"
 module ActiveRecord::Filter::PredicateBuilderExtension
 
   extend ActiveSupport::Concern
+
+  include ActiveRecord::Filter::RangeHelper
   
   class_methods do
     def filter_joins(klass, filters)
@@ -212,18 +214,24 @@ module ActiveRecord::Filter::PredicateBuilderExtension
   def expand_filter_for_arel_attribute(column, attribute, key, value)
     case key.to_sym
     when :contains
-      case column.type
-      when :geometry
+      if column.type == :geometry
         Arel::Nodes::NamedFunction.new('ST_Contains', [attribute, value])
+      elsif range_column?(column)
+        attribute.contains(range_from_value(column, value))
       else
         attribute.contains(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
       end
     when :contained_by
-      attribute.contained_by(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
+      if range_column?(column)
+        attribute.contained_by(range_from_value(column, value))
+      else
+        attribute.contained_by(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
+      end
     when :equal_to, :eq
-      case column.type
-      when :geometry
+      if column.type == :geometry
         Arel::Nodes::NamedFunction.new('ST_Equals', [attribute, value])
+      elsif range_column?(column) && value.is_a?(Hash)
+        attribute.eq(range_from_hash(column, value))
       else
         attribute.eq(value)
       end
@@ -252,18 +260,41 @@ module ActiveRecord::Filter::PredicateBuilderExtension
     when :ilike
       attribute.matches(value, nil, false)
     when :not, :not_equal, :neq
-      attribute.not_eq(value)
+      if range_column?(column) && value.is_a?(Hash)
+        attribute.not_eq(range_from_hash(column, value))
+      else
+        attribute.not_eq(value)
+      end
     when :not_in
       attribute.not_in(value)
     when :overlaps
-      case column.type
-      in :geometry
+      if column.type == :geometry
         attribute.overlaps(value)
+      elsif range_column?(column)
+        attribute.overlaps(range_from_value(column, value))
       else
         attribute.overlaps(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
       end
+    # PostgreSQL has no `!&&`, so this is the :overlaps node negated with Arel's
+    # own #not. There is no not_overlaps predication to call.
     when :not_overlaps
-      attribute.not_overlaps(value)
+      if column.type == :geometry
+        attribute.overlaps(value).not
+      elsif range_column?(column)
+        attribute.overlaps(range_from_value(column, value)).not
+      else
+        attribute.overlaps(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute)).not
+      end
+    # PostgreSQL's positional range operators. Unlike contains/overlaps these
+    # only mean something between two ranges, so there is no non-range arm —
+    # asking for one on any other column is the same mistake as an unknown
+    # predicate.
+    when *RANGE_POSITION_PREDICATES.keys
+      unless range_column?(column)
+        raise "Not Supported: #{key.to_sym} on column \"#{column.name}\" of type #{column.type}"
+      end
+
+      attribute.public_send(RANGE_POSITION_PREDICATES.fetch(key.to_sym), range_from_value(column, value))
     when :ts_match
       if value.is_a?(Array)
         attribute.ts_query(*value)
