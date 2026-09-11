@@ -5,6 +5,10 @@ module ActiveRecord::Filter
   # Resolves "relative" date/time filter values into concrete `Time`s before
   # they are handed to Arel.
   #
+  # Opt-in. Nothing here runs until an initializer turns it on:
+  #
+  #   ActiveRecord::Filter::RelativeTime.enable!
+  #
   # A relative value is either a keyword:
   #
   #   Property.filter(created_at: {gt: 'now'})
@@ -23,7 +27,21 @@ module ActiveRecord::Filter
   #
   # Only columns of a date/time type are inspected, so nothing here can change
   # the meaning of a filter on any other column.
-  module RelativeTimeExtension
+  module RelativeTime
+
+    # Prepended to ActiveRecord::PredicateBuilder by .enable!. Resolving the
+    # value here — before the filter's own column expansion builds any Arel —
+    # means every predicate (gt, in, bare equality, ...) picks up relative
+    # values with no further changes.
+    module PredicateBuilderExtension
+      def expand_filter_for_column(key, column, value, relation_trail)
+        if RelativeTime.enabled? && RelativeTime.applies_to?(column)
+          value = RelativeTime.resolve_filter_value(value)
+        end
+
+        super
+      end
+    end
 
     # Column types whose values may be relative.
     COLUMN_TYPES = %i[date datetime time timestamp timestamptz].freeze
@@ -60,6 +78,28 @@ module ActiveRecord::Filter
     DURATION_FORMAT = /\A\s*#{DURATION_PART}(?:\s*,?\s*#{DURATION_PART})*\s*\z/
 
     class << self
+
+      # Turn relative date/time filtering on for the process. Call from an
+      # initializer. Idempotent.
+      def enable!
+        unless @installed
+          ActiveRecord::PredicateBuilder.prepend(PredicateBuilderExtension)
+          @installed = true
+        end
+
+        @enabled = true
+      end
+
+      # Turn it off again. The prepend stays — a module cannot be
+      # un-prepended — so the patch remains in the ancestor chain and simply
+      # defers to `super`. Mainly here so tests can scope the feature.
+      def disable!
+        @enabled = false
+      end
+
+      def enabled?
+        !!@enabled
+      end
 
       def applies_to?(column)
         COLUMN_TYPES.include?(column.type)

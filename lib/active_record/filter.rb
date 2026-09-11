@@ -12,7 +12,7 @@ module ActiveRecord::Filter
   autoload :RelationExtension, 'active_record/filter/relation_extension'
   autoload :PredicateBuilderExtension, 'active_record/filter/predicate_builder_extension'
   autoload :RangeHelper, 'active_record/filter/range_helper'
-  autoload :RelativeTimeExtension, 'active_record/filter/relative_time_extension'
+  autoload :RelativeTime, 'active_record/filter/relative_time'
   autoload :SpawnMethodsExtension, 'active_record/filter/spawn_methods_extension'
   
   delegate :filter, :filter_for, to: :all

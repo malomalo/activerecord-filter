@@ -224,9 +224,20 @@ Player.filter(career_period: {eq: {begin: '2026-01-01', end_before: '2026-12-31'
 Relative dates and times
 ------------------------
 
-Date and time columns (`date`, `datetime`, `time`, `timestamp`) accept values
-that are resolved relative to the current time, so a saved filter keeps meaning
-the same thing as time passes. Everything is computed in `Time.zone`.
+This is opt-in. Turn it on once, in an initializer:
+
+```ruby
+# config/initializers/activerecord_filter.rb
+ActiveRecord::Filter::RelativeTime.enable!
+```
+
+Until you do, none of the values below are given any special meaning and every
+filter behaves exactly as it does without this feature.
+
+Once enabled, date and time columns (`date`, `datetime`, `time`, `timestamp`)
+accept values that are resolved relative to the current time, so a saved filter
+keeps meaning the same thing as time passes. Everything is computed in
+`Time.zone`.
 
 The keywords `now`, `today`, `yesterday` and `tomorrow` can be used anywhere a
 time is expected:
