@@ -21,7 +21,7 @@ class RangeColumnFilterTest < ActiveSupport::TestCase
     assert_sql(<<-SQL, query)
       SELECT players.*
       FROM players
-      WHERE players.career_period @> CAST('2005-06-15' AS timestamp)
+      WHERE players.career_period @> CAST('2005-06-15 00:00:00' AS timestamp)
     SQL
   end
 
@@ -152,7 +152,7 @@ class RangeColumnFilterTest < ActiveSupport::TestCase
     assert_sql(<<-SQL, query)
       SELECT players.*
       FROM players
-      WHERE players.career_period @> CAST('2005-01-01' AS timestamp)
+      WHERE players.career_period @> CAST('2005-01-01 00:00:00' AS timestamp)
         AND players.career_period <@ '[1990-01-01 00:00:00,2030-01-01 00:00:00)'
     SQL
   end
@@ -239,7 +239,7 @@ class RangeColumnFilterTest < ActiveSupport::TestCase
       assert_sql(<<-SQL, Player.filter(career_period: {contains: '2005-06-15'}))
         SELECT players.*
         FROM players
-        WHERE players.career_period @> CAST('2005-06-15' AS timestamp)
+        WHERE players.career_period @> CAST('2005-06-15 00:00:00' AS timestamp)
       SQL
     end
   ensure
@@ -355,6 +355,38 @@ class RangeColumnFilterTest < ActiveSupport::TestCase
       SELECT players.*
       FROM players
       WHERE players.jersey_numbers << '[5,10)'
+    SQL
+    query.to_a
+  end
+
+  # A point is serialized through the column's element type before it reaches
+  # SQL, so it is read the way the rest of ActiveRecord reads it rather than
+  # however the server's DateStyle is set.
+  test "a point is interpreted by ActiveRecord, not by PostgreSQL" do
+    # '01/02/2005' is February 1st to Ruby and January 2nd to PostgreSQL.
+    assert_sql(<<-SQL, Player.filter(career_period: {contains: '01/02/2005'}))
+      SELECT players.*
+      FROM players
+      WHERE players.career_period @> CAST('2005-02-01 00:00:00' AS timestamp)
+    SQL
+  end
+
+  # Serializing also catches input the element type cannot read, which would
+  # otherwise reach the database as NULL and quietly match nothing.
+  test "a point the element type cannot read raises" do
+    error = assert_raises(ActiveRecord::UnkownFilterError) do
+      Player.filter(career_period: {contains: 'not a date'}).to_sql
+    end
+    assert_match(/Could not read "not a date" as career_period's element type/, error.message)
+  end
+
+  test "a daterange point serializes as a date" do
+    query = Player.filter(season: {contains: '2026-06-15'})
+
+    assert_sql(<<-SQL, query)
+      SELECT players.*
+      FROM players
+      WHERE players.season @> CAST('2026-06-15' AS date)
     SQL
     query.to_a
   end

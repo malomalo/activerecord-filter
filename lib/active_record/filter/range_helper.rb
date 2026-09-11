@@ -75,10 +75,35 @@ module ActiveRecord::Filter
       return value if value.is_a?(::Range)
       return range_from_hash(column, value) if value.is_a?(Hash)
 
-      element_type = table.send(:klass).lease_connection.type_to_sql(range_type(column).subtype.type)
-      Arel::Nodes::NamedFunction.new('CAST', [
-        Arel::Nodes::As.new(Arel::Nodes.build_quoted(value), Arel::Nodes::SqlLiteral.new(element_type))
-      ])
+      range_point(column, value)
+    end
+
+    # A single point, cast to the range's element type.
+    #
+    # The value is serialized through that element type first, so it is read the
+    # way the rest of ActiveRecord reads it rather than however the server's
+    # DateStyle happens to be set — `'01/02/2005'` is February 1st to Ruby and
+    # January 2nd to PostgreSQL. Serializing also catches input the type cannot
+    # read, which would otherwise reach the database as NULL and quietly match
+    # nothing.
+    #
+    # The cast itself has to stay in the SQL: PostgreSQL resolves `@>` against an
+    # unknown-typed literal as `anyrange @> anyrange` and fails with "malformed
+    # range literal", and no amount of Ruby-side formatting changes that.
+    def range_point(column, value)
+      type = range_type(column).subtype
+      serialized = type.serialize(value)
+
+      if serialized.nil? && !value.nil?
+        raise ActiveRecord::UnkownFilterError.new(
+          "Could not read #{value.inspect} as #{column.name}'s element type (#{type.type})."
+        )
+      end
+
+      table.arel_table.cast(
+        Arel::Nodes.build_quoted(serialized),
+        Arel::Nodes::SqlLiteral.new(table.send(:klass).lease_connection.type_to_sql(type.type))
+      )
     end
 
     # A `{begin:, end:}` Hash becomes a Ruby Range, which ActiveRecord serializes
