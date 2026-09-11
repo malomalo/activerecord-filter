@@ -292,10 +292,10 @@ class RangeColumnFilterTest < ActiveSupport::TestCase
   # cannot express.
   test "positional operators" do
     {
-      strictly_left_of:    '<<',
-      strictly_right_of:   '>>',
-      not_extend_right_of: '&<',
-      not_extend_left_of:  '&>',
+      ends_before:    '<<',
+      starts_after:   '>>',
+      ends_by: '&<',
+      starts_by:  '&>',
       adjacent_to:         '-|-'
     }.each do |predicate, operator|
       query = Player.filter(career_period: {predicate => {begin: '2026-01-01', end_before: '2026-06-30'}})
@@ -327,6 +327,36 @@ class RangeColumnFilterTest < ActiveSupport::TestCase
       Player.filter(name: {adjacent_to: {begin: 1, end: 3}}).to_sql
     end
     assert_match(/Not Supported: adjacent_to on column "name"/, error.message)
+  end
+
+  # The bound keys accept a plural, since `{begins: 1, ends_before: 3}` reads
+  # more naturally than the singular in a sentence about one range.
+  test "bound keys accept plural forms" do
+    singular = Player.filter(jersey_numbers: {contains: {begin: 1, end: 3}}).to_sql
+    assert_equal singular, Player.filter(jersey_numbers: {contains: {begins: 1, ends: 3}}).to_sql
+
+    exclusive = Player.filter(jersey_numbers: {contains: {begin_after: 1, end_before: 3}}).to_sql
+    assert_equal exclusive, Player.filter(jersey_numbers: {contains: {begins_after: 1, ends_before: 3}}).to_sql
+  end
+
+  test "a plural and its singular on the same end conflict" do
+    error = assert_raises(ActiveRecord::UnkownFilterError) do
+      Player.filter(jersey_numbers: {contains: {begin: 1, begins: 2, end: 3}}).to_sql
+    end
+    assert_match(/Conflicting range bounds/, error.message)
+  end
+
+  # `ends_before` names a predicate at column level and an exclusive upper bound
+  # inside a range. Different nesting, so both readings stand.
+  test "ends_before works as both a predicate and a bound" do
+    query = Player.filter(jersey_numbers: {ends_before: {begins: 5, ends_before: 10}})
+
+    assert_sql(<<-SQL, query)
+      SELECT players.*
+      FROM players
+      WHERE players.jersey_numbers << '[5,10)'
+    SQL
+    query.to_a
   end
 
 end

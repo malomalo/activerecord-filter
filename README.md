@@ -161,10 +161,10 @@ Player.filter(career_period: {contained_by: {begin: '2000-01-01', end: '2030-01-
 | `contained_by` | `<@` | a range |
 | `eq` | `=` | a range |
 | `neq` / `not` / `not_equal` | `!=` | a range |
-| `strictly_left_of` | `<<` | a range |
-| `strictly_right_of` | `>>` | a range |
-| `not_extend_right_of` | `&<` | a range |
-| `not_extend_left_of` | `&>` | a range |
+| `ends_before` | `<<` | a range |
+| `starts_after` | `>>` | a range |
+| `ends_by` | `&<` | a range |
+| `starts_by` | `&>` | a range |
 | `adjacent_to` | `-|-` | a range |
 
 A **point** is a single value. It is cast to the range's element type, which is
@@ -184,12 +184,24 @@ including the two a Ruby Range cannot express:
 | `{begin_after: 1, end: 3}` | `(1,3]` | 2, 3 |
 | `{begin_after: 1, end_before: 3}` | `(1,3)` | 2 |
 
-The last five ask where two ranges sit relative to one another, which the
-containment operators cannot express. `<<` and `>>` mean every element is lower
-(or higher) with no overlap; `&<` asks whether the range stops at or before the
-other's upper bound and `&>` whether it starts at or after the other's lower
-bound; `-|-` is true when the two abut, with no gap and no overlap. They compare
-two ranges, so using one on any other column raises.
+The last five compare one edge of the column's range against one edge of the
+operand. `ends_before` and `starts_after` forbid overlap entirely; `ends_by` and
+`starts_by` constrain a single edge and permit it:
+
+| Predicate | SQL | Is exactly |
+| --- | --- | --- |
+| `ends_before` | `<<` | `upper(column) <= lower(operand)` |
+| `ends_by` | `&<` | `upper(column) <= upper(operand)` |
+| `starts_after` | `>>` | `lower(column) >= upper(operand)` |
+| `starts_by` | `&>` | `lower(column) >= lower(operand)` |
+| `adjacent_to` | `-\|-` | the two abut, with no gap and no overlap |
+
+All five compare two ranges — PostgreSQL has no point form of any of them — so
+using one on any other column raises.
+
+Each bound key also accepts its plural — `begins`, `begins_after`, `ends` and
+`ends_before` — so a range can be written in whichever reads better. Naming the
+same end twice, in either form, raises.
 
 An omitted bound is an unbounded end:
 

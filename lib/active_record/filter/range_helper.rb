@@ -17,17 +17,23 @@ module ActiveRecord::Filter
     #   {begin: 1,       end_before: 3}  =>  [1,3)
     #   {begin_after: 1, end: 3}         =>  (1,3]
     #   {begin_after: 1, end_before: 3}  =>  (1,3)
-    RANGE_BEGIN_KEYS = { 'begin' => false, 'begin_after' => true }.freeze
-    RANGE_END_KEYS   = { 'end' => false, 'end_before' => true }.freeze
+    RANGE_BEGIN_KEYS = {
+      'begin'        => false, 'begins'       => false,
+      'begin_after'  => true,  'begins_after' => true
+    }.freeze
+    RANGE_END_KEYS = {
+      'end'          => false, 'ends'         => false,
+      'end_before'   => true,  'ends_before'  => true
+    }.freeze
     RANGE_KEYS = (RANGE_BEGIN_KEYS.keys + RANGE_END_KEYS.keys).freeze
 
     # PostgreSQL's positional range operators, whose filter keys are the same as
     # the arel-extensions predication names they call.
     RANGE_POSITION_PREDICATES = %i[
-      strictly_left_of
-      strictly_right_of
-      not_extend_right_of
-      not_extend_left_of
+      ends_before
+      ends_by
+      starts_after
+      starts_by
       adjacent_to
     ].freeze
 
