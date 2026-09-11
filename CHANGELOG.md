@@ -1,13 +1,42 @@
 # Changelog
 
-## Unreleased
+## [Unreleased]
 
 ### Added
+- Filtering on PostgreSQL range columns (`int4range`, `int8range`, `numrange`,
+  `tsrange`, `tstzrange`, `daterange`) with the `contains` (`@>`), `overlaps`
+  (`&&`), `not_overlaps`, `contained_by` (`<@`), `eq`, `neq` and the positional
+  `ends_before` (`<<`), `starts_after` (`>>`), `ends_by`
+  (`&<`), `starts_by` (`&>`) and `adjacent_to` (`-|-`) operators. The
+  operand is either a single point or a range — a Ruby Range, or a Hash naming
+  its bounds, where inclusivity is part of the key: `{begin:, end:}` is `[a,b]`,
+  `{begin:, end_before:}` is `[a,b)`, `{begin_after:, end:}` is `(a,b]` and
+  `{begin_after:, end_before:}` is `(a,b)`. An omitted bound is unbounded, and
+  each bound key also accepts its plural (`begins`, `ends`, ...). See
+  the README for the full syntax.
 - Relative date/time filtering on `date`/`datetime`/`time`/`timestamp` columns.
   Values may be the keywords `now`, `today`, `yesterday` and `tomorrow`, or a
   Hash with an `at` anchor plus any of the `add`, `subtract`, `start_of` and
   `end_of` operations — e.g. `filter(created_at: {gt: {at: 'now', subtract: '1
   month', start_of: 'month'}})`. See the README for the full syntax.
+
+### Security
+- Require `arel-extensions` >= 9.0.1, which fixes a SQL injection in JSON path
+  handling (GHSA-75hc-9q9v-9cv2). A filter key such as `"metadata.subkey"` was
+  interpolated into the `#>'{...}'` array literal unescaped, so an
+  attacker-controlled key could break out of the path and inject SQL.
+
+### Changed
+- JSON path predicates now render as `#> array['key']` instead of
+  `#>'{key}'` (the arel-extensions fix above). PostgreSQL const-folds the array
+  back to `'{key}'::text[]`, so expression indexes written against the literal
+  form still match.
+
+### CI
+- Raise `max_connections` to 500 on the Postgres and MySQL jobs. The ActiveRecord
+  suite can exhaust the 100-slot PGDG default depending on the minitest seed,
+  cascading into hundreds of "too many clients already" errors unrelated to the
+  gem. Ported from malomalo/arel-extensions#13.
 
 ## [9.0.0] - 2026-08-27
 
