@@ -26,6 +26,13 @@ class StringFilterTest < ActiveSupport::TestCase
       FROM properties
       WHERE properties.name IS NULL
     SQL
+    
+    query = Property.filter(name: 'nil')
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.name IS NULL
+    SQL
   end
   
   test "::filter :string_column => boolean" do
