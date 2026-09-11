@@ -275,13 +275,15 @@ module ActiveRecord::Filter::PredicateBuilderExtension
       else
         attribute.overlaps(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
       end
+    # PostgreSQL has no `!&&`, so this is the :overlaps node negated with Arel's
+    # own #not. There is no not_overlaps predication to call.
     when :not_overlaps
       if column.type == :geometry
-        attribute.not_overlaps(value)
+        attribute.overlaps(value).not
       elsif range_column?(column)
-        attribute.not_overlaps(range_from_value(column, value))
+        attribute.overlaps(range_from_value(column, value)).not
       else
-        attribute.not_overlaps(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute))
+        attribute.overlaps(Arel::Nodes::Casted.new(column.array ? Array(value) : value, attribute)).not
       end
     # PostgreSQL's positional range operators. Unlike contains/overlaps these
     # only mean something between two ranges, so there is no non-range arm —
