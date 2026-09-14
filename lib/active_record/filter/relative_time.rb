@@ -238,8 +238,14 @@ module ActiveRecord::Filter
       # Operations are applied in OPERATIONS order, not the order they appear
       # in the Hash, so `{subtract: '1 month', start_of: 'month'}` and
       # `{start_of: 'month', subtract: '1 month'}` mean the same thing.
+      #
+      # Built into a plain Hash rather than `operations.transform_keys`: a
+      # request Hash coming through `ActionController::Parameters#to_unsafe_h`
+      # is a `HashWithIndifferentAccess`, which re-stringifies whatever a
+      # block returns from `transform_keys`, so the Symbol keys this needs
+      # never actually stick and every operation looks unknown.
       def apply(time, operations)
-        operations = operations.transform_keys { |key| key.to_s.to_sym }
+        operations = operations.each_with_object({}) { |(key, value), memo| memo[key.to_s.to_sym] = value }
 
         unknown = operations.keys - OPERATIONS
         if unknown.any?
