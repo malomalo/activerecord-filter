@@ -58,9 +58,6 @@ module ActiveRecord::Filter
       'year'    => :years,   'yr'  => :years,   'y' => :years
     }.freeze
 
-    # Units accepted by `start_of`/`end_of`.
-    TRUNCATION_UNITS = %w[second minute hour day week month quarter year].freeze
-
     DURATION_PART = /-?\d+(?:\.\d+)?\s*[a-zA-Z]+/
     DURATION_FORMAT = /\A\s*#{DURATION_PART}(?:\s*,?\s*#{DURATION_PART})*\s*\z/
 
@@ -218,9 +215,17 @@ module ActiveRecord::Filter
         end
       end
 
+      # The unit a name refers to, as its `ActiveSupport::Duration` plural
+      # (`:days`). `add`/`subtract` and `start_of`/`end_of` take the same set,
+      # so this is the one place a unit name is understood.
+      def unit_for(unit)
+        key = unit.to_s.strip.downcase
+
+        DURATION_UNITS[key.sub(/s\z/, '')] || DURATION_UNITS[key]
+      end
+
       def duration_for(amount, unit)
-        key = unit.to_s.strip.downcase.sub(/s\z/, '')
-        method = DURATION_UNITS[key] || DURATION_UNITS[unit.to_s.strip.downcase]
+        method = unit_for(unit)
 
         unless method
           raise ActiveRecord::UnkownFilterError.new("Unknown duration unit: #{unit.inspect}")
@@ -233,18 +238,18 @@ module ActiveRecord::Filter
       end
 
       def truncate(time, unit, boundary)
-        key = unit.to_s.strip.downcase.sub(/s\z/, '')
+        method = unit_for(unit)
 
-        unless TRUNCATION_UNITS.include?(key)
+        unless method
           raise ActiveRecord::UnkownFilterError.new("Unknown date/time unit: #{unit.inspect}")
         end
 
         # `beginning_of_second`/`end_of_second` do not exist.
-        if key == 'second'
+        if method == :seconds
           return boundary == :beginning ? time.change(usec: 0) : time.change(usec: 999999)
         end
 
-        time.public_send("#{boundary == :beginning ? 'beginning' : 'end'}_of_#{key}")
+        time.public_send("#{boundary == :beginning ? 'beginning' : 'end'}_of_#{method.to_s.sub(/s\z/, '')}")
       end
 
     end

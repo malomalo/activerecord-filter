@@ -124,6 +124,10 @@ class RelativeTimeFilterTest < ActiveSupport::TestCase
     assert_filter(format_time(NOW.beginning_of_quarter), {created_at: {gt: {at: 'now', start_of: 'quarter'}}})
     assert_filter(format_time(NOW.beginning_of_year), {created_at: {gt: {at: 'now', start_of: 'year'}}})
     assert_filter(format_time(NOW.change(usec: 0)), {created_at: {gt: {at: 'now', start_of: 'second'}}})
+
+    # The same unit names `add`/`subtract` take, abbreviations included.
+    assert_filter(format_time(NOW.beginning_of_hour), {created_at: {gt: {at: 'now', start_of: 'hr'}}})
+    assert_filter(format_time(NOW.beginning_of_quarter), {created_at: {gt: {at: 'now', start_of: 'qtr'}}})
   end
 
   test ":end_of" do
