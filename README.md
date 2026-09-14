@@ -237,7 +237,8 @@ filter behaves exactly as it does without this feature.
 Once enabled, date and time columns (`date`, `datetime`, `time`, `timestamp`)
 accept values that are resolved relative to the current time, so a saved filter
 keeps meaning the same thing as time passes. Everything is computed in
-`Time.zone`.
+`Time.zone`, and every value in one query resolves against a single reading of
+the clock, so the two sides of a range can never straddle a tick.
 
 The keyword `now` can be used anywhere a time is expected:
 

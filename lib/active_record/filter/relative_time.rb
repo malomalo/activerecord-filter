@@ -34,6 +34,16 @@ module ActiveRecord::Filter
     # means every predicate (gt, in, bare equality, ...) picks up relative
     # values with no further changes.
     module PredicateBuilderExtension
+      # The entry point for a filter, and so where the clock is read. Nested
+      # calls — an array of conditions, an association, each of which builds a
+      # predicate builder of its own — reuse the outermost reading, which is
+      # what keeps one query's values from disagreeing with each other. The
+      # reading is only ever consulted by a resolve, so there is nothing to
+      # gate here on whether the feature is on.
+      def build_from_filter_hash(attributes, relation_trail, alias_tracker)
+        RelativeTime.with_now { super }
+      end
+
       def expand_filter_for_column(key, column, value, relation_trail)
         if RelativeTime.enabled? && RelativeTime.applies_to?(column)
           value = RelativeTime.resolve_filter_value(value)
@@ -44,6 +54,7 @@ module ActiveRecord::Filter
     end
 
     ANCHOR_KEY    = 'at'
+    NOW_KEY       = :activerecord_filter_relative_now
     KEYWORDS      = %w[now].freeze
     COLUMN_TYPES  = %i[date datetime time timestamp timestamptz].freeze
     OPERATIONS    = %i[add subtract start_of end_of].freeze
@@ -84,34 +95,55 @@ module ActiveRecord::Filter
         COLUMN_TYPES.include?(column.type)
       end
 
+      # Takes the reading every value resolved inside the block shares, unless
+      # an enclosing block already took one. Per-fiber, so a concurrent query
+      # takes its own, and unset on the way out so nothing outlives the build
+      # that took it.
+      def with_now
+        return yield if ActiveSupport::IsolatedExecutionState[NOW_KEY]
+
+        begin
+          ActiveSupport::IsolatedExecutionState[NOW_KEY] = Time.current
+          yield
+        ensure
+          ActiveSupport::IsolatedExecutionState.delete(NOW_KEY)
+        end
+      end
+
+      # The reading in force, or the clock for a resolve no query build drove.
+      def now
+        ActiveSupport::IsolatedExecutionState[NOW_KEY] || Time.current
+      end
+
       # Entry point for a filter value on a date/time column. The value is
       # either relative itself (`created_at: 'now'`), a Hash of predicates
       # whose values may be relative (`created_at: {gt: 'now'}`), or an Array
       # of values (`created_at: {in: ['now', ...]}`).
-      def resolve_filter_value(value)
-        if relative?(value)
-          resolve(value)
+      #
+      # The reading is taken once per query (see .with_now) and carried down
+      # from here, so every `now` in it agrees — the two halves of
+      # `{gte: 'now', lt: {at: 'now', ...}}` cannot land on either side of a
+      # tick, and neither can two columns.
+      def resolve_filter_value(value, now = self.now)
+        if keyword?(value) || relative_hash?(value)
+          resolve(value, now)
         elsif value.is_a?(Hash)
-          value.transform_values { |subvalue| resolve(subvalue) }
+          value.transform_values { |subvalue| resolve(subvalue, now) }
         else
-          resolve(value)
+          resolve(value, now)
         end
-      end
-
-      def relative?(value)
-        keyword?(value) || relative_hash?(value)
       end
 
       private
 
-      def resolve(value)
+      def resolve(value, now)
         if value.is_a?(Array)
-          value.map { |subvalue| resolve(subvalue) }
+          value.map { |subvalue| resolve(subvalue, now) }
         elsif keyword?(value)
-          resolve_anchor(value)
+          resolve_anchor(value, now)
         elsif relative_hash?(value)
           operations = value.reject { |key, _| key.to_s == ANCHOR_KEY }
-          apply(resolve_anchor(anchor_of(value)), operations)
+          apply(resolve_anchor(anchor_of(value), now), operations)
         else
           value
         end
@@ -135,22 +167,22 @@ module ActiveRecord::Filter
         value.find { |key, _| key.to_s == ANCHOR_KEY }.last
       end
 
-      def resolve_anchor(value)
+      def resolve_anchor(value, now)
         case value
         when Time, DateTime
           value
         when Date
           value.respond_to?(:in_time_zone) && Time.zone ? value.in_time_zone : value.to_time
         when String, Symbol
-          resolve_anchor_string(value.to_s.strip)
+          resolve_anchor_string(value.to_s.strip, now)
         else
           raise ActiveRecord::UnkownFilterError.new("Unknown date/time anchor: #{value.inspect}")
         end
       end
 
-      def resolve_anchor_string(value)
+      def resolve_anchor_string(value, now)
         case value.downcase
-        when 'now' then Time.current
+        when 'now' then now
         else
           parsed = begin
             Time.zone ? Time.zone.parse(value) : Time.parse(value)

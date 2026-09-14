@@ -166,6 +166,44 @@ class RelativeTimeFilterTest < ActiveSupport::TestCase
     SQL
   end
 
+  test "every value in one query resolves against one reading of the clock" do
+    # `tick` moves the clock in the middle of the build. The reading is taken
+    # once, at the top, so the columns resolved after it still agree with the
+    # ones resolved before — without that, a range could straddle a tick, and
+    # at the wrong moment a day.
+    # The block runs against the predicate builder, so the clock is moved
+    # through the test case itself.
+    test_case = self
+    Property.filter_on(:tick) do |klass, table, key, value, relation_trail, alias_tracker|
+      test_case.travel_to(NOW + 1.hour)
+      table.arel_table[:id].not_eq(nil)
+    end
+
+    sql = Property.filter(tick: true, created_at: {gte: 'now'}, opened_on: {lt: 'now'}).to_sql
+
+    assert_includes sql, format_time(NOW)
+    assert_includes sql, NOW.to_date.iso8601
+    refute_includes sql, format_time(NOW + 1.hour)
+
+    # The next query reads the clock again.
+    assert_includes Property.filter(created_at: {gte: 'now'}).to_sql, format_time(NOW + 1.hour)
+  end
+
+  test "every 'now' in one value is the same 'now'" do
+    # The clock is read once per value and carried down, so the two halves of
+    # a range cannot land on either side of a tick — at the wrong moment,
+    # either side of a day. Passing the reading in is what makes that visible.
+    anchor = Time.utc(2021, 3, 4, 5, 6, 7)
+
+    resolved = ActiveRecord::Filter::RelativeTime.resolve_filter_value(
+      {gte: 'now', lt: {at: 'now', add: '1 day'}},
+      anchor
+    )
+
+    assert_equal anchor, resolved[:gte]
+    assert_equal anchor + 1.day, resolved[:lt]
+  end
+
   test "relative values inside :in" do
     query = Property.filter(created_at: {in: ['now', {at: 'now', add: '1 day'}]})
 
