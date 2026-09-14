@@ -14,6 +14,14 @@
   `{begin_after:, end_before:}` is `(a,b)`. An omitted bound is unbounded, and
   each bound key also accepts its plural (`begins`, `ends`, ...). See
   the README for the full syntax.
+- Opt-in relative date/time filtering on `date`/`datetime`/`time`/`timestamp`
+  columns, and on range columns over them (`tsrange`, `tstzrange`,
+  `daterange`), where a point or either bound may be relative. Enabled with
+  `ActiveRecord::Filter::RelativeTime.enable!` from an initializer. Values may be the keyword `now`, or a Hash with an `at` anchor
+  plus any of the `add`, `subtract`, `start_of` and `end_of` operations — e.g.
+  `filter(created_at: {gt: {at: 'now', subtract: '1 month', start_of: 'month'}})`.
+  Until `enable!` is called nothing is resolved and filtering is unchanged. See
+  the README for the full syntax.
 
 ### Security
 - Require `arel-extensions` >= 9.0.1, which fixes a SQL injection in JSON path

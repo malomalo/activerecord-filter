@@ -1,0 +1,328 @@
+# frozen_string_literal: true
+
+module ActiveRecord::Filter
+
+  # Resolves "relative" date/time filter values into concrete Time values before
+  # they are handed to Arel.
+  #
+  # Opt-in. Nothing here runs until an initializer turns it on:
+  #
+  #   ActiveRecord::Filter::RelativeTime.enable!
+  #
+  # A relative value is either a keyword:
+  #
+  #   Property.filter(created_at: {gt: 'now'})
+  #
+  # or a Hash with an `at` anchor — a keyword or a parseable date/time —
+  # alongside any of the operations to apply to it:
+  #
+  #   Property.filter(created_at: {gt:  {at: 'now', add: '7 days'}})
+  #   Property.filter(created_at: {lte: {at: '2026-08-02', subtract: '5 months'}})
+  #   Property.filter(created_at: {lt:  {at: '2027-01-05', end_of: 'month'}})
+  #
+  # `at` is what marks the Hash as relative, so a predicate Hash can never be
+  # mistaken for one. Operations are applied in a fixed order (see OPERATIONS)
+  # rather than the order they were written, so the result does not depend on
+  # Hash ordering.
+  #
+  # Only columns of a date/time type are inspected, so nothing here can change
+  # the meaning of a filter on any other column.
+  module RelativeTime
+
+    # Prepended to ActiveRecord::PredicateBuilder by .enable!. Resolving the
+    # value here — before the filter's own column expansion builds any Arel —
+    # means every predicate (gt, in, bare equality, ...) picks up relative
+    # values with no further changes.
+    module PredicateBuilderExtension
+      # The entry point for a filter, and so where the clock is read. Nested
+      # calls — an array of conditions, an association, each of which builds a
+      # predicate builder of its own — reuse the outermost reading, which is
+      # what keeps one query's values from disagreeing with each other. The
+      # reading is only ever consulted by a resolve, so there is nothing to
+      # gate here on whether the feature is on.
+      def build_from_filter_hash(attributes, relation_trail, alias_tracker)
+        RelativeTime.with_now { super }
+      end
+
+      def expand_filter_for_column(key, column, value, relation_trail)
+        if RelativeTime.enabled?
+          if RelativeTime.applies_to?(column)
+            value = RelativeTime.resolve_filter_value(value)
+          elsif RelativeTime.applies_to_range?(range_type(column))
+            value = RelativeTime.resolve_range_filter_value(value)
+          end
+        end
+
+        super
+      end
+    end
+
+    ANCHOR_KEY    = 'at'
+    NOW_KEY       = :activerecord_filter_relative_now
+    KEYWORDS      = %w[now].freeze
+    COLUMN_TYPES  = %i[date datetime time timestamp timestamptz].freeze
+    OPERATIONS    = %i[add subtract start_of end_of].freeze
+    DURATION_UNITS = {
+      'second'  => :seconds, 'sec' => :seconds, 's' => :seconds,
+      'minute'  => :minutes, 'min' => :minutes,
+      'hour'    => :hours,   'hr'  => :hours,   'h' => :hours,
+      'day'     => :days,    'd'   => :days,
+      'week'    => :weeks,   'wk'  => :weeks,   'w' => :weeks,
+      'month'   => :months,  'mon' => :months,
+      'quarter' => :quarters, 'qtr' => :quarters,
+      'year'    => :years,   'yr'  => :years,   'y' => :years
+    }.freeze
+
+    DURATION_PART = /-?\d+(?:\.\d+)?\s*[a-zA-Z]+/
+    DURATION_FORMAT = /\A\s*#{DURATION_PART}(?:\s*,?\s*#{DURATION_PART})*\s*\z/
+
+    class << self
+
+      def enable!
+        unless @installed
+          ActiveRecord::PredicateBuilder.prepend(PredicateBuilderExtension)
+          @installed = true
+        end
+
+        @enabled = true
+      end
+
+      def disable!
+        @enabled = false
+      end
+
+      def enabled?
+        !!@enabled
+      end
+
+      def applies_to?(column)
+        COLUMN_TYPES.include?(column.type)
+      end
+
+      # A range column whose elements are a date or a time — `tsrange`,
+      # `tstzrange`, `daterange`, and any range type declared over one of
+      # those. Asking the element type rather than naming the range types is
+      # what RangeHelper does to build the operand, so the two agree.
+      def applies_to_range?(type)
+        !!type && COLUMN_TYPES.include?(type.subtype.type)
+      end
+
+      # Takes the reading every value resolved inside the block shares, unless
+      # an enclosing block already took one. Per-fiber, so a concurrent query
+      # takes its own, and unset on the way out so nothing outlives the build
+      # that took it.
+      def with_now
+        return yield if ActiveSupport::IsolatedExecutionState[NOW_KEY]
+
+        begin
+          ActiveSupport::IsolatedExecutionState[NOW_KEY] = Time.current
+          yield
+        ensure
+          ActiveSupport::IsolatedExecutionState.delete(NOW_KEY)
+        end
+      end
+
+      # The reading in force, or the clock for a resolve no query build drove.
+      def now
+        ActiveSupport::IsolatedExecutionState[NOW_KEY] || Time.current
+      end
+
+      # Entry point for a filter value on a date/time column. The value is
+      # either relative itself (`created_at: 'now'`), a Hash of predicates
+      # whose values may be relative (`created_at: {gt: 'now'}`), or an Array
+      # of values (`created_at: {in: ['now', ...]}`).
+      #
+      # The reading is taken once per query (see .with_now) and carried down
+      # from here, so every `now` in it agrees — the two halves of
+      # `{gte: 'now', lt: {at: 'now', ...}}` cannot land on either side of a
+      # tick, and neither can two columns.
+      def resolve_filter_value(value, now = self.now)
+        if keyword?(value) || relative_hash?(value)
+          resolve(value, now)
+        elsif value.is_a?(Hash)
+          value.transform_values { |subvalue| resolve(subvalue, now) }
+        else
+          resolve(value, now)
+        end
+      end
+
+      # Entry point for a filter value on a range column. A range operand
+      # nests deeper than a scalar one — a predicate's value may be a bound
+      # Hash (`{begin: 'now'}`) or a Ruby Range whose ends are relative — so
+      # the value is walked rather than resolved one level down. Only values
+      # are ever resolved, never keys, and an `at` Hash is resolved whole
+      # rather than walked into.
+      def resolve_range_filter_value(value, now = self.now)
+        case value
+        when ::Range
+          ::Range.new(resolve_range_filter_value(value.begin, now),
+                      resolve_range_filter_value(value.end, now),
+                      value.exclude_end?)
+        when Array
+          value.map { |subvalue| resolve_range_filter_value(subvalue, now) }
+        when Hash
+          if relative_hash?(value)
+            resolve(value, now)
+          else
+            value.transform_values { |subvalue| resolve_range_filter_value(subvalue, now) }
+          end
+        else
+          resolve(value, now)
+        end
+      end
+
+      private
+
+      def resolve(value, now)
+        if value.is_a?(Array)
+          value.map { |subvalue| resolve(subvalue, now) }
+        elsif keyword?(value)
+          resolve_anchor(value, now)
+        elsif relative_hash?(value)
+          operations = value.reject { |key, _| key.to_s == ANCHOR_KEY }
+          apply(resolve_anchor(anchor_of(value), now), operations)
+        else
+          value
+        end
+      end
+
+      def keyword?(value)
+        (value.is_a?(String) || value.is_a?(Symbol)) &&
+          KEYWORDS.include?(value.to_s.strip.downcase)
+      end
+
+      # The `at` key is what identifies the form, so a predicate Hash
+      # (`{gt: ...}`) can never be mistaken for a relative one and there is no
+      # shape to guess at. Anything else in the Hash must be an operation, and
+      # an anchor that will not resolve is an error rather than a value quietly
+      # passed through to the adapter.
+      def relative_hash?(value)
+        value.is_a?(Hash) && value.any? { |key, _| key.to_s == ANCHOR_KEY }
+      end
+
+      def anchor_of(value)
+        value.find { |key, _| key.to_s == ANCHOR_KEY }.last
+      end
+
+      def resolve_anchor(value, now)
+        case value
+        when Time, DateTime
+          value
+        when Date
+          value.respond_to?(:in_time_zone) && Time.zone ? value.in_time_zone : value.to_time
+        when String, Symbol
+          resolve_anchor_string(value.to_s.strip, now)
+        else
+          raise ActiveRecord::UnkownFilterError.new("Unknown date/time anchor: #{value.inspect}")
+        end
+      end
+
+      def resolve_anchor_string(value, now)
+        case value.downcase
+        when 'now' then now
+        else
+          parsed = begin
+            Time.zone ? Time.zone.parse(value) : Time.parse(value)
+          rescue ArgumentError, TypeError
+            nil
+          end
+
+          if parsed.nil?
+            raise ActiveRecord::UnkownFilterError.new("Unknown date/time anchor: #{value.inspect}")
+          end
+
+          parsed
+        end
+      end
+
+      # Operations are applied in OPERATIONS order, not the order they appear
+      # in the Hash, so `{subtract: '1 month', start_of: 'month'}` and
+      # `{start_of: 'month', subtract: '1 month'}` mean the same thing.
+      def apply(time, operations)
+        operations = operations.transform_keys { |key| key.to_s.to_sym }
+
+        unknown = operations.keys - OPERATIONS
+        if unknown.any?
+          raise ActiveRecord::UnkownFilterError.new("Unknown date/time operation: #{unknown.first.inspect}")
+        end
+
+        OPERATIONS.inject(time) do |result, operation|
+          next result unless operations.key?(operation)
+          argument = operations[operation]
+
+          case operation
+          when :add      then result + parse_duration(argument)
+          when :subtract then result - parse_duration(argument)
+          when :start_of then truncate(result, argument, :beginning)
+          when :end_of   then truncate(result, argument, :end)
+          end
+        end
+      end
+
+      def parse_duration(value)
+        case value
+        when ActiveSupport::Duration
+          value
+        when Numeric
+          value.seconds
+        when Hash
+          value.inject(0.seconds) { |sum, (unit, amount)| sum + duration_for(amount, unit) }
+        when String, Symbol
+          parse_duration_string(value.to_s)
+        else
+          raise ActiveRecord::UnkownFilterError.new("Unknown duration: #{value.inspect}")
+        end
+      end
+
+      def parse_duration_string(value)
+        unless value.match?(DURATION_FORMAT)
+          raise ActiveRecord::UnkownFilterError.new("Unknown duration: #{value.inspect}")
+        end
+
+        value.scan(/(-?\d+(?:\.\d+)?)\s*([a-zA-Z]+)/).inject(0.seconds) do |sum, (amount, unit)|
+          sum + duration_for(amount, unit)
+        end
+      end
+
+      # The unit a name refers to, as its `ActiveSupport::Duration` plural
+      # (`:days`). `add`/`subtract` and `start_of`/`end_of` take the same set,
+      # so this is the one place a unit name is understood.
+      def unit_for(unit)
+        key = unit.to_s.strip.downcase
+
+        DURATION_UNITS[key.sub(/s\z/, '')] || DURATION_UNITS[key]
+      end
+
+      def duration_for(amount, unit)
+        method = unit_for(unit)
+
+        unless method
+          raise ActiveRecord::UnkownFilterError.new("Unknown duration unit: #{unit.inspect}")
+        end
+
+        amount = amount.is_a?(String) ? (amount.include?('.') ? amount.to_f : amount.to_i) : amount
+
+        # ActiveSupport has no `quarters`; a quarter is three months.
+        method == :quarters ? (amount * 3).months : amount.public_send(method)
+      end
+
+      def truncate(time, unit, boundary)
+        method = unit_for(unit)
+
+        unless method
+          raise ActiveRecord::UnkownFilterError.new("Unknown date/time unit: #{unit.inspect}")
+        end
+
+        # `beginning_of_second`/`end_of_second` do not exist.
+        if method == :seconds
+          return boundary == :beginning ? time.change(usec: 0) : time.change(usec: 999999)
+        end
+
+        time.public_send("#{boundary == :beginning ? 'beginning' : 'end'}_of_#{method.to_s.sub(/s\z/, '')}")
+      end
+
+    end
+
+  end
+
+end
