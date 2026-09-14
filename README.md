@@ -306,10 +306,26 @@ Property.filter(created_at: {in: ['now', {at: 'now', subtract: '1 week'}]})
 Property.filter(created_at: {at: 'now', start_of: 'day'})
 ```
 
-Only date/time columns are inspected, and only a Hash with an `at` key is read
-as a relative value, so this cannot change the meaning of any filter that works
-today. An anchor that will not parse, an unknown operation, or an unknown unit
-raises `ActiveRecord::UnkownFilterError`.
+Range columns whose elements are a date or a time — `tsrange`, `tstzrange`,
+`daterange` — take relative values too, as a point or in either bound:
+
+```ruby
+Property.filter(window: {contains: 'now'})
+Property.filter(window: {
+  overlaps: {begin: {at: 'now', start_of: 'day'}, end_before: 'now'}
+})
+Property.filter(span: {contains: {at: 'now', add: '1 day'}})
+```
+
+A Ruby Range works the same way, within what Ruby will build:
+`('now'..'2027-01-01')` resolves both ends, but a Range cannot mix a keyword
+with an `at` Hash, so write the bounds out for that. Ranges over any other
+element type are left alone.
+
+Only date/time columns and ranges over them are inspected, and only a Hash with
+an `at` key is read as a relative value, so this cannot change the meaning of
+any filter that works today. An anchor that will not parse, an unknown
+operation, or an unknown unit raises `ActiveRecord::UnkownFilterError`.
 
 
 It can also filter across associations. Any association (`belongs_to`,

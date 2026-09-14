@@ -45,8 +45,12 @@ module ActiveRecord::Filter
       end
 
       def expand_filter_for_column(key, column, value, relation_trail)
-        if RelativeTime.enabled? && RelativeTime.applies_to?(column)
-          value = RelativeTime.resolve_filter_value(value)
+        if RelativeTime.enabled?
+          if RelativeTime.applies_to?(column)
+            value = RelativeTime.resolve_filter_value(value)
+          elsif RelativeTime.applies_to_range?(range_type(column))
+            value = RelativeTime.resolve_range_filter_value(value)
+          end
         end
 
         super
@@ -95,6 +99,14 @@ module ActiveRecord::Filter
         COLUMN_TYPES.include?(column.type)
       end
 
+      # A range column whose elements are a date or a time — `tsrange`,
+      # `tstzrange`, `daterange`, and any range type declared over one of
+      # those. Asking the element type rather than naming the range types is
+      # what RangeHelper does to build the operand, so the two agree.
+      def applies_to_range?(type)
+        !!type && COLUMN_TYPES.include?(type.subtype.type)
+      end
+
       # Takes the reading every value resolved inside the block shares, unless
       # an enclosing block already took one. Per-fiber, so a concurrent query
       # takes its own, and unset on the way out so nothing outlives the build
@@ -129,6 +141,31 @@ module ActiveRecord::Filter
           resolve(value, now)
         elsif value.is_a?(Hash)
           value.transform_values { |subvalue| resolve(subvalue, now) }
+        else
+          resolve(value, now)
+        end
+      end
+
+      # Entry point for a filter value on a range column. A range operand
+      # nests deeper than a scalar one — a predicate's value may be a bound
+      # Hash (`{begin: 'now'}`) or a Ruby Range whose ends are relative — so
+      # the value is walked rather than resolved one level down. Only values
+      # are ever resolved, never keys, and an `at` Hash is resolved whole
+      # rather than walked into.
+      def resolve_range_filter_value(value, now = self.now)
+        case value
+        when ::Range
+          ::Range.new(resolve_range_filter_value(value.begin, now),
+                      resolve_range_filter_value(value.end, now),
+                      value.exclude_end?)
+        when Array
+          value.map { |subvalue| resolve_range_filter_value(subvalue, now) }
+        when Hash
+          if relative_hash?(value)
+            resolve(value, now)
+          else
+            value.transform_values { |subvalue| resolve_range_filter_value(subvalue, now) }
+          end
         else
           resolve(value, now)
         end

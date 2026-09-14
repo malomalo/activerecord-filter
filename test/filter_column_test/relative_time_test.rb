@@ -8,6 +8,9 @@ class RelativeTimeFilterTest < ActiveSupport::TestCase
     create_table "properties", force: :cascade do |t|
       t.datetime "created_at", null: false
       t.date     "opened_on"
+      t.tsrange  "window"
+      t.daterange "span"
+      t.int4range "seats"
     end
 
     create_table "photos", force: :cascade do |t|
@@ -230,6 +233,77 @@ class RelativeTimeFilterTest < ActiveSupport::TestCase
       {created_at: {at: 'now', start_of: 'day'}},
       operator: '='
     )
+  end
+
+  # --- range columns over a date/time element type ---
+
+  test "a point in a range column" do
+    query = Property.filter(window: {contains: 'now'})
+
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.window @> CAST('#{format_time(NOW)}' AS timestamp)
+    SQL
+  end
+
+  test "either bound of a range operand" do
+    query = Property.filter(window: {
+      overlaps: {begin: {at: 'now', start_of: 'day'}, end_before: {at: 'now', add: '1 day'}}
+    })
+
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.window && '[#{format_time(NOW.beginning_of_day)},#{format_time(NOW + 1.day)})'
+    SQL
+  end
+
+  test "a bound the range type cannot carry" do
+    # `begin_after` has no Ruby Range, so RangeHelper builds the operand with
+    # PostgreSQL's own constructor — the bounds are resolved either way.
+    query = Property.filter(window: {overlaps: {begin_after: 'now', end: {at: 'now', add: '1 day'}}})
+
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.window && tsrange('#{format_time(NOW)}', '#{format_time(NOW + 1.day)}', '(]')
+    SQL
+  end
+
+  test "a Ruby Range of relative values" do
+    # Both ends are resolved. A Range can only hold ends Ruby can compare, so
+    # mixing a keyword with an `at` Hash means writing the bounds out instead.
+    query = Property.filter(window: {contained_by: ('now'..'2027-01-01')})
+
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.window <@ '[#{format_time(NOW)},#{format_time(Time.utc(2027, 1, 1))}]'
+    SQL
+  end
+
+  test "a daterange resolves to the element type" do
+    query = Property.filter(span: {contains: {at: 'now', add: '1 day'}})
+
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.span @> CAST('#{(NOW + 1.day).to_date.iso8601}' AS date)
+    SQL
+  end
+
+  test "a range column over any other element type is left alone" do
+    query = Property.filter(seats: {contains: 5})
+
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.* FROM properties WHERE properties.seats @> CAST(5 AS integer)
+    SQL
+
+    # Nothing resolves 'now' for it, so it is still read as an integer.
+    assert_raises(ActiveRecord::UnkownFilterError) do
+      Property.filter(seats: {contains: 'now'}).to_sql
+    end
   end
 
   test "existing behavior is unchanged" do
