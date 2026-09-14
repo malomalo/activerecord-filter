@@ -361,6 +361,30 @@ class RelativeTimeFilterTest < ActiveSupport::TestCase
     end
   end
 
+  # `ActionController::Parameters#to_unsafe_h` (see RelationExtension#clean_filters)
+  # returns a HashWithIndifferentAccess, and that indifference reaches all the
+  # way down into an operation Hash's keys. `apply` used to convert those keys
+  # with `transform_keys { key.to_s.to_sym }`, but a HashWithIndifferentAccess
+  # re-stringifies whatever a block returns, so the Symbol never survives and
+  # every operation looked unknown.
+  # https://github.com/malomalo/activerecord-filter/pull/29#issuecomment-5639385327
+  test "an operation Hash that is itself indifferent still resolves" do
+    indifferent = { 'contains' => { 'at' => 'now', 'subtract' => '1 weeks' } }.with_indifferent_access
+
+    assert_filter(
+      format_time(NOW - 1.week),
+      { created_at: indifferent[:contains] },
+      operator: '='
+    )
+
+    query = Property.filter(window: { indifferent.keys.first => indifferent.values.first })
+    assert_equal(<<-SQL.strip.gsub(/\s+/, ' '), query.to_sql.strip.gsub('"', ''))
+      SELECT properties.*
+      FROM properties
+      WHERE properties.window @> CAST('#{format_time(NOW - 1.week)}' AS timestamp)
+    SQL
+  end
+
   # --- the opt-in itself ---
 
   test "disabled, a relative value is left to ActiveRecord" do
