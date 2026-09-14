@@ -67,12 +67,6 @@ class RelativeTimeFilterTest < ActiveSupport::TestCase
     assert_filter(format_time(NOW), {created_at: :now}, operator: '=')
   end
 
-  test "'today', 'yesterday' and 'tomorrow'" do
-    assert_filter(format_time(NOW.beginning_of_day), {created_at: {gt: 'today'}})
-    assert_filter(format_time(NOW.yesterday.beginning_of_day), {created_at: {gt: 'yesterday'}})
-    assert_filter(format_time(NOW.tomorrow.beginning_of_day), {created_at: {gt: 'tomorrow'}})
-  end
-
   test "an :at anchor with no operations" do
     assert_filter(format_time(NOW), {created_at: {gt: {at: 'now'}}})
     assert_filter(format_time(Time.utc(2026, 1, 1)), {created_at: {gt: {at: '2026-01-01'}}})

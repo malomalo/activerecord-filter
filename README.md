@@ -239,15 +239,13 @@ accept values that are resolved relative to the current time, so a saved filter
 keeps meaning the same thing as time passes. Everything is computed in
 `Time.zone`.
 
-The keywords `now`, `today`, `yesterday` and `tomorrow` can be used anywhere a
-time is expected:
+The keyword `now` can be used anywhere a time is expected:
 
 ```ruby
 Property.filter(created_at: {gt: 'now'})
-Property.filter(created_at: {gte: 'today'})
 ```
 
-For anything more, pass a Hash with an `at` anchor — a keyword or any parseable
+For anything more, pass a Hash with an `at` anchor — `now` or any parseable
 date/time — alongside the operations to apply to it:
 
 ```ruby
@@ -303,7 +301,7 @@ bare equality:
 
 ```ruby
 Property.filter(created_at: 'now')
-Property.filter(created_at: {in: ['today', {at: 'today', subtract: '1 week'}]})
+Property.filter(created_at: {in: ['now', {at: 'now', subtract: '1 week'}]})
 Property.filter(created_at: {at: 'now', start_of: 'day'})
 ```
 

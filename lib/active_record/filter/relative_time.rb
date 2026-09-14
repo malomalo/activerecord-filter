@@ -2,7 +2,7 @@
 
 module ActiveRecord::Filter
 
-  # Resolves "relative" date/time filter values into concrete `Time`s before
+  # Resolves "relative" date/time filter values into concrete Time values before
   # they are handed to Arel.
   #
   # Opt-in. Nothing here runs until an initializer turns it on:
@@ -16,9 +16,9 @@ module ActiveRecord::Filter
   # or a Hash with an `at` anchor — a keyword or a parseable date/time —
   # alongside any of the operations to apply to it:
   #
-  #   Property.filter(created_at: {gt: {at: 'now', add: '7 days'}})
+  #   Property.filter(created_at: {gt:  {at: 'now', add: '7 days'}})
   #   Property.filter(created_at: {lte: {at: '2026-08-02', subtract: '5 months'}})
-  #   Property.filter(created_at: {lt: {at: '2027-01-05', end_of: 'month'}})
+  #   Property.filter(created_at: {lt:  {at: '2027-01-05', end_of: 'month'}})
   #
   # `at` is what marks the Hash as relative, so a predicate Hash can never be
   # mistaken for one. Operations are applied in a fixed order (see OPERATIONS)
@@ -43,23 +43,10 @@ module ActiveRecord::Filter
       end
     end
 
-    # Column types whose values may be relative.
-    COLUMN_TYPES = %i[date datetime time timestamp timestamptz].freeze
-
-    # The key that marks a Hash as a relative date/time.
-    ANCHOR_KEY = 'at'
-
-    # The operations that may accompany an anchor, in the order they are
-    # applied. Shifting before truncating is what almost every filter wants
-    # ("the start of last month"), and fixing the order keeps the result
-    # independent of how the Hash was written or serialized.
-    OPERATIONS = %i[add subtract start_of end_of].freeze
-
-    KEYWORDS = %w[now today yesterday tomorrow].freeze
-
-    # Units accepted by `add`/`subtract`, mapped to their `ActiveSupport::Duration`
-    # constructor. `quarter` has no constructor of its own and is handled as
-    # three months.
+    ANCHOR_KEY    = 'at'
+    KEYWORDS      = %w[now].freeze
+    COLUMN_TYPES  = %i[date datetime time timestamp timestamptz].freeze
+    OPERATIONS    = %i[add subtract start_of end_of].freeze
     DURATION_UNITS = {
       'second'  => :seconds, 'sec' => :seconds, 's' => :seconds,
       'minute'  => :minutes, 'min' => :minutes,
@@ -79,8 +66,6 @@ module ActiveRecord::Filter
 
     class << self
 
-      # Turn relative date/time filtering on for the process. Call from an
-      # initializer. Idempotent.
       def enable!
         unless @installed
           ActiveRecord::PredicateBuilder.prepend(PredicateBuilderExtension)
@@ -90,9 +75,6 @@ module ActiveRecord::Filter
         @enabled = true
       end
 
-      # Turn it off again. The prepend stays — a module cannot be
-      # un-prepended — so the patch remains in the ancestor chain and simply
-      # defers to `super`. Mainly here so tests can scope the feature.
       def disable!
         @enabled = false
       end
@@ -171,10 +153,7 @@ module ActiveRecord::Filter
 
       def resolve_anchor_string(value)
         case value.downcase
-        when 'now'       then Time.current
-        when 'today'     then Time.current.beginning_of_day
-        when 'yesterday' then Time.current.yesterday.beginning_of_day
-        when 'tomorrow'  then Time.current.tomorrow.beginning_of_day
+        when 'now' then Time.current
         else
           parsed = begin
             Time.zone ? Time.zone.parse(value) : Time.parse(value)
